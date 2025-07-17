@@ -8,7 +8,7 @@ interface AuthState {
   users: User[];
 }
 
-type AuthAction = 
+type AuthAction =
   | { type: 'LOGIN'; payload: User }
   | { type: 'LOGOUT' }
   | { type: 'SWITCH_USER'; payload: User };

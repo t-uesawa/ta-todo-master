@@ -96,18 +96,24 @@ export function MasterManagement() {
     setDeleteTarget(null);
   };
 
-  const handleFormOpen = (type: 'phaseGroup' | 'phase' | 'taskMaster', uid: string) => {
-    console.log('add', uid);
-    if (type === 'phaseGroup') {
-      setParentGroupUid(uid);
-      if (!uid) {
+  // 開くフォームのタイプと親のuidを渡す
+  const handleFormOpen = (openType: 'phaseGroup' | 'phase' | 'taskMaster', parentUid: string) => {
+    console.log('add', parentUid);
+    switch (openType) {
+      case 'phaseGroup':
+        setParentGroupUid(parentUid);
         setPhaseGroupFormOpen(true);
-      } else {
-        setPhaseFormOpen(true)
-      }
-    } else if (type === 'phase') {
-      setParentPhaseUid(uid);
-      setTaskMasterFormOpen(true);
+        return;
+      case 'phase':
+        setParentGroupUid(parentUid);
+        setPhaseFormOpen(true);
+        return;
+      case 'taskMaster':
+        setParentPhaseUid(parentUid);
+        setTaskMasterFormOpen(true);
+        return;
+      default:
+        return;
     }
   };
 
@@ -161,7 +167,7 @@ export function MasterManagement() {
         isOpen={phaseGroupFormOpen}
         onClose={() => handleFormClose('phaseGroup')}
         editingPhaseGroup={editingPhaseGroup}
-      // parentGroupUid={parentGroupUid}
+        parentGroupUid={parentGroupUid}
       />
 
       <PhaseForm

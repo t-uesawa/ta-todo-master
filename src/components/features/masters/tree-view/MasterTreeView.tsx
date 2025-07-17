@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { TreeView } from "./TreeView";
 import { TreeContent } from "./TreeContent";
 import { IconButtonType, MasterDataResult, Phase, PhaseGroup, TaskMaster } from "@/types";
+import { SelectAddTypeDialog } from "../SelectAddTypeDialog";
 
 interface MasterTreeViewProps {
 	getMasterDataWithType: (uid: string) => MasterDataResult;
@@ -21,6 +22,9 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 	const [selectedMaster, setSelectedMaster] = useState<string>('');
 	// trueで詳細画面、falseでツリーを表示する（モバイル）
 	const [showMobileContent, setShowMobileContent] = useState(false);
+	// 追加タイプダイアログ状態
+	const [addTypeDialogOpen, setAddTypeDialogOpen] = useState(false);
+	const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
 	// ツリーアイテムをクリックしたときの処理
 	const handleMasterSelect = (masterUid: string) => {
@@ -39,6 +43,13 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 
 		if (result.type === 'none') return;
 
+		// グループの作成はグループかフェーズか選択
+		if (type === 'add' && result.type === 'phaseGroup') {
+			setSelectedUid(masterUid);
+			setAddTypeDialogOpen(true);
+			return;
+		}
+
 		const name =
 			result.type === 'phaseGroup' ? result.data.groupName :
 				result.type === 'phase' ? result.data.phaseName :
@@ -46,7 +57,8 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 
 		switch (type) {
 			case 'add':
-				return onFormOpen(result.type, masterUid);
+				// 上でphaseGroupは絞ってるし、taskMasterの追加はあり得ないからphaseしかない
+				return onFormOpen('taskMaster', masterUid);
 			case 'edit':
 				return onEdit(result.type, result.data);
 			case 'detail':
@@ -55,6 +67,17 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 				return onDelete(result.type, masterUid, name);
 		}
 	}
+
+	// const handleTypeSelect = (type: 'group' | 'phase', parentUid: string) => {
+	// 	setAddTypeDialogOpen(false);
+	// 	onFormOpen(type === 'group' ? 'phaseGroup' : 'phase', parentUid);
+	// };
+	const handleFormTypeSelected = (selectedType: 'phaseGroup' | 'phase') => {
+		if (!selectedUid) return;
+		onFormOpen(selectedType, selectedUid);
+		setSelectedUid(null);
+		setAddTypeDialogOpen(false);
+	};
 
 	return (
 		<div className="flex h-full">
@@ -89,6 +112,12 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 					onIconButtonClick={handleIconButtonClick}
 				/>
 			</div>
+
+			<SelectAddTypeDialog
+				open={addTypeDialogOpen}
+				onClose={() => setAddTypeDialogOpen(false)}
+				onSelect={handleFormTypeSelected}
+			/>
 		</div>
 	);
 }

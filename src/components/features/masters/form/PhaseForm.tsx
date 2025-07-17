@@ -86,6 +86,17 @@ export function PhaseForm({ isOpen, onClose, editingPhase, parentGroupUid }: Pha
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="phaseName">フェーズ名</Label>
+              <Input
+                id="phaseName"
+                value={phaseName}
+                onChange={(e) => setPhaseName(e.target.value)}
+                placeholder="フェーズ名を入力..."
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="parentGroup">親フェーズグループ</Label>
               <Select value={groupUid} onValueChange={setGroupUid} required>
                 <SelectTrigger>
@@ -99,17 +110,6 @@ export function PhaseForm({ isOpen, onClose, editingPhase, parentGroupUid }: Pha
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phaseName">フェーズ名</Label>
-              <Input
-                id="phaseName"
-                value={phaseName}
-                onChange={(e) => setPhaseName(e.target.value)}
-                placeholder="フェーズ名を入力..."
-                required
-              />
             </div>
           </div>
           <DialogFooter>

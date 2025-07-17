@@ -205,44 +205,91 @@ export const TreeView = ({
 	// ツリーデータをフィルタリング
 	const filteredTreeData: TreeNode[] = useMemo(() => {
 		const build = () => {
-			const root: TreeNode = { id: 'root', label: 'タスクマスタ', children: [], type: 'root' };
+			// 全グループノードをマップに構築
+			const groupMap = new Map<string, TreeNode>();
 
 			for (const g of state.phaseGroups) {
-				const group: TreeNode = { id: g.uid, label: g.groupName, children: [], type: 'group' };
-				const phases = state.phases.filter(p => p.parentGroupUid === g.uid);
+				groupMap.set(g.uid, {
+					id: g.uid,
+					label: g.groupName,
+					children: [],
+					type: 'group',
+				});
+			}
 
-				for (const ph of phases) {
-					const phase: TreeNode = { id: ph.uid, label: ph.phaseName, children: [], type: 'phase' };
-					const tasks = state.taskMasters.filter(t => t.phaseUid === ph.uid);
+			// 各フェーズとタスクを対応するグループに割り当て
+			for (const ph of state.phases) {
+				const phase: TreeNode = {
+					id: ph.uid,
+					label: ph.phaseName,
+					children: [],
+					type: 'phase',
+				};
 
-					// タスクをフィルタリング
-					const filteredTasks = tasks
-						.map(t => ({
-							id: t.uid,
-							label: t.taskName,
-							description: t.taskDescription,
-							type: 'task' as MasterType,
-							isSearchMatch: isMatchingItem(t.taskName, searchText)
-						}))
-						.filter(task => !searchText || isMatchingItem(task.label, searchText));
+				const tasks = state.taskMasters.filter(t => t.phaseUid === ph.uid);
+				const filteredTasks = tasks
+					.map(t => ({
+						id: t.uid,
+						label: t.taskName,
+						description: t.taskDescription,
+						type: 'task' as MasterType,
+						isSearchMatch: isMatchingItem(t.taskName, searchText),
+					}))
+					.filter(task => !searchText || task.isSearchMatch);
 
+				const phaseMatches = isMatchingItem(ph.phaseName, searchText);
+				const hasMatchingTasks = filteredTasks.length > 0;
+
+				if (!searchText || phaseMatches || hasMatchingTasks) {
 					phase.children = filteredTasks;
 
-					// フェーズに一致するタスクがあるか、フェーズ自体が一致するかチェック
-					const phaseMatches = isMatchingItem(ph.phaseName, searchText);
-					const hasMatchingTasks = filteredTasks.length > 0;
-
-					if (!searchText || phaseMatches || hasMatchingTasks) {
-						group.children!.push(phase);
+					const parentGroup = groupMap.get(ph.parentGroupUid);
+					if (parentGroup) {
+						parentGroup.children!.push(phase);
 					}
 				}
+			}
 
-				// グループに一致するフェーズがあるか、グループ自体が一致するかチェック
-				const groupMatches = isMatchingItem(g.groupName, searchText);
-				const hasMatchingPhases = group.children!.length > 0;
+			// 子グループを親グループにネストする（再帰的ツリー構築）
+			const attachGroups = () => {
+				for (const g of state.phaseGroups) {
+					const node = groupMap.get(g.uid);
+					if (!node) continue;
 
-				if (!searchText || groupMatches || hasMatchingPhases) {
-					root.children!.push(group);
+					const groupMatches = isMatchingItem(g.groupName, searchText);
+					const hasChildren = node.children && node.children.length > 0;
+
+					if (!searchText || groupMatches || hasChildren) {
+						if (g.parentGroupUid) {
+							const parentNode = groupMap.get(g.parentGroupUid);
+							if (parentNode) {
+								parentNode.children!.push(node);
+							}
+						}
+					}
+				}
+			};
+			attachGroups();
+
+			// 最上位グループを root に追加（親のいないグループ）
+			const root: TreeNode = {
+				id: 'root',
+				label: 'タスクマスタ',
+				children: [],
+				type: 'root',
+			};
+
+			for (const g of state.phaseGroups) {
+				if (!g.parentGroupUid) {
+					const node = groupMap.get(g.uid);
+					if (node) {
+						const groupMatches = isMatchingItem(g.groupName, searchText);
+						const hasChildren = node.children && node.children.length > 0;
+
+						if (!searchText || groupMatches || hasChildren) {
+							root.children!.push(node);
+						}
+					}
 				}
 			}
 

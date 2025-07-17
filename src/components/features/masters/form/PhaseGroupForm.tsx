@@ -6,17 +6,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useApp } from '../../../../contexts/AppContext';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { PhaseGroup } from '../../../../types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PhaseGroupFormProps {
   isOpen: boolean;
   onClose: () => void;
   editingPhaseGroup?: PhaseGroup | null;
+  parentGroupUid: string;
 }
 
-export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup }: PhaseGroupFormProps) {
+export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup, parentGroupUid }: PhaseGroupFormProps) {
+  const { state: appState } = useApp();
   const { dispatch } = useApp();
   const { state: authState } = useAuth();
   const [groupName, setGroupName] = useState('');
+  const [groupUid, setGroupUid] = useState(editingPhaseGroup?.parentGroupUid || parentGroupUid);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,15 +33,16 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup }: PhaseGrou
       const updatedPhaseGroup: PhaseGroup = {
         ...editingPhaseGroup,
         groupName: groupName.trim(),
+        parentGroupUid: groupUid,
         updatedBy: authState.user?.uid || '',
         updatedAt: now
       };
       dispatch({ type: 'UPDATE_PHASE_GROUP', payload: updatedPhaseGroup });
     } else {
       const newPhaseGroup: PhaseGroup = {
-        uid: `pg_${Date.now()}`,
+        uid: `pg-${Date.now()}`,
         groupName: groupName.trim(),
-        parentGroupUid: undefined,
+        parentGroupUid: groupUid,
         createdBy: authState.user?.uid || '',
         createdAt: now,
         updatedBy: authState.user?.uid || '',
@@ -56,10 +61,15 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup }: PhaseGrou
   };
 
   useEffect(() => {
+    if (parentGroupUid) {
+      setGroupUid(parentGroupUid);
+    }
+
     if (editingPhaseGroup) {
       setGroupName(editingPhaseGroup.groupName);
+      setGroupUid(editingPhaseGroup.parentGroupUid || '');
     }
-  }, [editingPhaseGroup]);
+  }, [editingPhaseGroup, parentGroupUid]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -83,6 +93,22 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup }: PhaseGrou
                 placeholder="フェーズグループ名を入力..."
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentGroup">親フェーズグループ</Label>
+              <Select value={groupUid} onValueChange={setGroupUid} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="フェーズグループを選択..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {appState.phaseGroups.map(group => (
+                    <SelectItem key={group.uid} value={group.uid}>
+                      {group.groupName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
