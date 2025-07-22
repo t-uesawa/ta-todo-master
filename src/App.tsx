@@ -11,6 +11,7 @@ import { ProjectList } from './components/features/projects/ProjectList';
 import { MasterManagement } from './components/features/masters/MasterManagement';
 import { useResponsive } from './hooks/useResponsive';
 import { Test } from './components/features/test/Test';
+import { Toaster } from './components/ui/sonner';
 
 function AppContent() {
   const { state: authState } = useAuth();
@@ -65,6 +66,7 @@ function App() {
       <AuthProvider>
         <AppProvider>
           <AppContent />
+          <Toaster />
         </AppProvider>
       </AuthProvider>
     </SidebarProvider>

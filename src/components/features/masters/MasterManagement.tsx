@@ -1,7 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useApp } from '../../../contexts/AppContext';
-// import { useAuth } from '../../../contexts/AuthContext';
 import { PhaseGroupForm } from './form/PhaseGroupForm';
 import { PhaseForm } from './form/PhaseForm';
 import { TaskMasterForm } from './form/TaskMasterForm';
@@ -9,9 +7,18 @@ import { PhaseGroup, Phase, TaskMaster, MasterDataResult } from '../../../types'
 import { MasterTreeView } from './tree-view/MasterTreeView';
 import { cn } from '@/lib/utils';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useMaster } from '@/hooks/data/use-master';
 
 export function MasterManagement() {
-  const { state, dispatch } = useApp();
+  // const { dispatch } = useApp();
+  const {
+    phaseGroups,
+    phases,
+    taskMasters,
+    loading,
+    fecthAllMasters,
+    deletePhaseGroup
+  } = useMaster();
   // const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
 
@@ -40,15 +47,15 @@ export function MasterManagement() {
   function getMasterDataWithType(uid: string): MasterDataResult {
 
     if (uid.startsWith('pg-')) {
-      const data = state.phaseGroups.find(g => g.uid === uid);
+      const data = phaseGroups.find(g => g.uid === uid);
       return data ? { type: 'phaseGroup', data } : { type: 'none', data: null };
     }
     else if (uid.startsWith('p-')) {
-      const data = state.phases.find(p => p.uid === uid);
+      const data = phases.find(p => p.uid === uid);
       return data ? { type: 'phase', data } : { type: 'none', data: null };
     }
     else if (uid.startsWith('tm-')) {
-      const data = state.taskMasters.find(t => t.uid === uid);
+      const data = taskMasters.find(t => t.uid === uid);
       return data ? { type: 'taskMaster', data } : { type: 'none', data: null };
     }
     return { type: 'none', data: null };
@@ -82,13 +89,13 @@ export function MasterManagement() {
 
     switch (deleteTarget.type) {
       case 'phaseGroup':
-        dispatch({ type: 'DELETE_PHASE_GROUP', payload: deleteTarget.uid });
+        deletePhaseGroup(deleteTarget.uid);
         break;
       case 'phase':
-        dispatch({ type: 'DELETE_PHASE', payload: deleteTarget.uid });
+        // dispatch({ type: 'DELETE_PHASE', payload: deleteTarget.uid });
         break;
       case 'taskMaster':
-        dispatch({ type: 'DELETE_TASK_MASTER', payload: deleteTarget.uid });
+        // dispatch({ type: 'DELETE_TASK_MASTER', payload: deleteTarget.uid });
         break;
     }
 
@@ -135,6 +142,18 @@ export function MasterManagement() {
         break;
     }
   };
+
+  useEffect(() => {
+    fecthAllMasters();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">

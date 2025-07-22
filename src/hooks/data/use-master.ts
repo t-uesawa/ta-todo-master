@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Phase, PhaseGroup, TaskMaster } from "@/types";
 import dayjs from "dayjs";
-import { addDoc, collection, doc, getDocs, orderBy, query, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { useCallback } from "react";
 
 export const useMaster = () => {
@@ -62,21 +62,22 @@ export const useMaster = () => {
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			const newData = {
+			const rawId = crypto.randomUUID();
+			const customUid = `pg-${rawId}`;
+
+			const newData: PhaseGroup = {
 				...data,
+				uid: customUid,
 				createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
 				createdBy: userData.user?.uid || '',
 				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
 				updatedBy: userData.user?.uid || '',
 			}
 
-			const ref = collection(db, COLLECTION_NAMES.PHASE_GROUPS);
-			const docRef = await addDoc(ref, newData);
+			const ref = doc(db, COLLECTION_NAMES.PHASE_GROUPS, customUid);
+			await setDoc(ref, newData);
 
-			// uidを含めるため再度更新
-			await updatePhaseGroup(docRef.id, { ...newData, uid: docRef.id });
-
-			dispatch({ type: 'ADD_PHASE_GROUP', payload: { ...newData, uid: docRef.id } });
+			dispatch({ type: 'ADD_PHASE_GROUP', payload: newData });
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : 'フェーズグループの作成中にエラーが発生しました。';
 			dispatch({ type: 'SET_ERROR', payload: errMsg });
@@ -111,49 +112,68 @@ export const useMaster = () => {
 	}, [userData, dispatch]);
 
 	// グループマスタの削除
+	/**
+	 * 1. 削除対象のグループUIDを親に持つ子グループを取得
+	 * 2. 子グループがあれば、1同様に子グループを親に持つ子グループを取得(すべての関連するグループを取得)
+	 * 3. 取得した関連グループUIDを配列にして、ループさせる
+	 * 4. ループ内で、グループUIDを親に持つフェーズを全て取得する
+	 * 5. グループUIDを親に持つフェーズの数だけループして、フェーズUIDを親に持つタスクを全て取得する
+	 * 
+	 */
 	const deletePhaseGroup = useCallback(async (uid: string) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			// トランザクションで削除するフェーズグループに紐づくフェーズとタスクも削除
+			let phases = appData.phases;
+			let tasks = appData.taskMasters;
+
+			// Firestoreコレクション参照
+			const groupCol = collection(db, COLLECTION_NAMES.PHASE_GROUPS);
+			const phaseCol = collection(db, COLLECTION_NAMES.PHASES);
+			const taskCol = collection(db, COLLECTION_NAMES.TASK_MASTERS);
+
+			// Firestore バッチ処理
 			const batch = writeBatch(db);
 
-			// グループの削除
-			const groupRef = doc(db, COLLECTION_NAMES.PHASE_GROUPS, uid);
-			batch.delete(groupRef);
+			// 1. フェーズ取得（グループに紐づく）
+			const phaseQuery = query(phaseCol, where('parentGroupUid', '==', uid));
+			const phaseSnapshot = await getDocs(phaseQuery);
 
-			// 関連フェーズの削除
-			let newPhases = appData.phases;
-			let newTasks = appData.taskMasters;
+			for (const phaseDoc of phaseSnapshot.docs) {
+				const phaseId = phaseDoc.id;
 
-			const phasesQuery = query(
-				collection(db, COLLECTION_NAMES.PHASES),
-				where('parentGroupUid', '==', uid)
-			);
-			const phaseSnapshot = await getDocs(phasesQuery);
-			phaseSnapshot.forEach(async doc => {
-				// 関連タスクの削除
-				const tasksQuery = query(
-					collection(db, COLLECTION_NAMES.TASK_MASTERS),
-					where('phaseUid', '==', doc.id)
-				);
-				const taskSnapshot = await getDocs(tasksQuery);
+				// 2. タスク取得（フェーズに紐づく）
+				const taskQuery = query(taskCol, where('phaseUid', '==', phaseId));
+				const taskSnapshot = await getDocs(taskQuery);
 
-				taskSnapshot.forEach(doc => {
-					batch.delete(doc.ref);
-					newTasks = newTasks.filter(t => t.uid !== doc.id);
-				});
+				for (const taskDoc of taskSnapshot.docs) {
+					batch.delete(doc(taskCol, taskDoc.id)); // タスク削除
+					tasks = tasks.filter(t => t.uid !== taskDoc.id);
+				}
 
-				batch.delete(doc.ref);
-				newPhases = newPhases.filter(p => p.uid !== doc.id);
-			});
+				batch.delete(doc(phaseCol, phaseId)); // フェーズ削除
+				phases = phases.filter(p => p.uid !== phaseDoc.id);
+			}
 
+			// 3. 子グループ取得（親グループに紐づく）
+			const childGroupQuery = query(groupCol, where('parentGroupUid', '==', uid));
+			const childGroupSnapshot = await getDocs(childGroupQuery);
+
+			for (const childGroupDoc of childGroupSnapshot.docs) {
+				await deletePhaseGroup(childGroupDoc.id); // 再帰で子グループ処理
+			}
+
+			// 4. 最後にこのグループ自体を削除
+			batch.delete(doc(groupCol, uid));
+
+			// 5. 一括で削除を実行
 			await batch.commit();
+			console.log(`Deleted group ${uid} and all descendants`);
 
 			dispatch({ type: 'DELETE_PHASE_GROUP', payload: uid });
-			dispatch({ type: 'SET_PHASES', payload: newPhases });
-			dispatch({ type: 'SET_TASK_MASTERS', payload: newTasks });
+			dispatch({ type: 'SET_PHASES', payload: phases });
+			dispatch({ type: 'SET_TASK_MASTERS', payload: tasks });
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'プロジェクトの削除中にエラーが発生しました';
 			dispatch({ type: 'SET_ERROR', payload: error });
@@ -175,6 +195,11 @@ export const useMaster = () => {
 	// タスクマスタの削除
 
 	return {
+		phaseGroups: appData.phaseGroups,
+		phases: appData.phases,
+		taskMasters: appData.taskMasters,
+		loading: appData.loading,
+		error: appData.error,
 		fecthAllMasters,
 		addPhaseGroup,
 		updatePhaseGroup,
