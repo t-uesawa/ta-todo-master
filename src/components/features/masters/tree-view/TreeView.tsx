@@ -3,7 +3,7 @@
  */
 
 import { Input } from "@/components/ui/input";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from '@/contexts/AppContext';
 import { RichTreeView, TreeItemCheckbox, TreeItemContent, TreeItemDragAndDropOverlay, TreeItemGroupTransition, TreeItemIcon, TreeItemIconContainer, TreeItemProvider, TreeItemRoot, useTreeItem, useTreeItemModel, UseTreeItemParameters } from '@mui/x-tree-view';
 import { Folder, FolderOpen, FileText, FileQuestion, FileSearch, Plus } from 'lucide-react';
@@ -22,6 +22,8 @@ interface CustomTreeItemProps
 	Omit<React.HTMLAttributes<HTMLLIElement>, 'onFocus'> {
 	onIconButtonClick: (itemId: string, type: IconButtonType) => void;
 }
+
+const EXPANDED_ITEMS_KEY = 'tree_expanded_items';
 
 // テキストをハイライト表示するコンポーネント
 const HighlightText: React.FC<{ text: string; searchText: string }> = ({ text, searchText }) => {
@@ -175,7 +177,16 @@ export const TreeView = ({
 
 	const [searchText, setSearchText] = useState<string>('');
 	// 展開中のアイテム
-	const [expandedItems, setExpandedItems] = useState<string[]>(['root']);
+	const [expandedItems, setExpandedItems] = useState<string[]>(() => {
+		const saved = localStorage.getItem(EXPANDED_ITEMS_KEY);
+		try {
+			const parsed = JSON.parse(saved ?? '[]');
+			return Array.isArray(parsed) ? parsed : [];
+		} catch (e) {
+			console.warn('Failed to parse expandedItems from localStorage', e);
+			return [];
+		}
+	});
 	const isExpandingRef = useRef(false);
 
 	// 検索条件に一致するかチェック
@@ -337,6 +348,28 @@ export const TreeView = ({
 		}
 		onSelectedMaster(itemId);
 	}, [onSelectedMaster]);
+
+	// 展開状態をローカルに永続化
+	useEffect(() => {
+		if (!searchText) {
+			localStorage.setItem(EXPANDED_ITEMS_KEY, JSON.stringify(expandedItems));
+		}
+	}, [expandedItems, searchText]);
+
+	// ローカルに保管してある展開状況をロード
+	useEffect(() => {
+		const saved = localStorage.getItem(EXPANDED_ITEMS_KEY);
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed)) {
+					setExpandedItems(parsed);
+				}
+			} catch (e) {
+				console.error('Failed to parse expanded items from localStorage', e);
+			}
+		}
+	}, []);
 
 	return (
 		<div className="flex flex-col h-full">

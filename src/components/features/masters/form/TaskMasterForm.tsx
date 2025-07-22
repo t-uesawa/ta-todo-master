@@ -107,6 +107,31 @@ export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhase
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="taskName">タスク名</Label>
+              <Input
+                id="taskName"
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                lang='ja'
+                type='text'
+                placeholder="タスク名を入力..."
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="taskDescription">説明</Label>
+              <Textarea
+                id="taskDescription"
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+                lang='ja'
+                placeholder="タスクの説明を入力..."
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="phase">フェーズ</Label>
               <Select value={phaseUid} onValueChange={setPhaseUid} required>
                 <SelectTrigger>
@@ -120,28 +145,6 @@ export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhase
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="taskName">タスク名</Label>
-              <Input
-                id="taskName"
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                placeholder="タスク名を入力..."
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="taskDescription">説明</Label>
-              <Textarea
-                id="taskDescription"
-                value={taskDescription}
-                onChange={(e) => setTaskDescription(e.target.value)}
-                placeholder="タスクの説明を入力..."
-                rows={3}
-              />
             </div>
           </div>
           <DialogFooter>

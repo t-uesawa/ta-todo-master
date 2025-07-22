@@ -11,6 +11,7 @@ import { COLLECTION_NAMES, Phase, PhaseGroup, TaskMaster } from "@/types";
 import dayjs from "dayjs";
 import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { useCallback } from "react";
+import { toast } from "sonner";
 
 export const useMaster = () => {
 	const { state: appData, dispatch } = useApp();
@@ -25,25 +26,27 @@ export const useMaster = () => {
 			const groupsSnapshot = await getDocs(
 				query(
 					collection(db, COLLECTION_NAMES.PHASE_GROUPS),
-					orderBy('updatedAt', 'asc')
+					orderBy('createdAt', 'asc')
 				)
 			);
 			const phasesSnapshot = await getDocs(
 				query(
 					collection(db, COLLECTION_NAMES.PHASES),
-					orderBy('updatedAt', 'asc')
+					orderBy('createdAt', 'asc')
 				)
 			);
 			const tasksSnapshot = await getDocs(
 				query(
 					collection(db, COLLECTION_NAMES.TASK_MASTERS),
-					orderBy('updatedAt', 'asc')
+					orderBy('createdAt', 'asc')
 				)
 			);
 
 			const groupsData = groupsSnapshot.docs.map(doc => doc.data() as PhaseGroup);
 			const phasesData = phasesSnapshot.docs.map(doc => doc.data() as Phase);
 			const tasksData = tasksSnapshot.docs.map(doc => doc.data() as TaskMaster);
+
+			toast(`${groupsData.length + phasesData.length + tasksData.length}件取得しました`);
 
 			dispatch({ type: 'SET_PHASE_GROUPS', payload: groupsData });
 			dispatch({ type: 'SET_PHASES', payload: phasesData });
