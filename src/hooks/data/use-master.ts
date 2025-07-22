@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Phase, PhaseGroup, TaskMaster } from "@/types";
 import dayjs from "dayjs";
-import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { useCallback } from "react";
 
 export const useMaster = () => {
@@ -92,7 +92,7 @@ export const useMaster = () => {
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			// 更新対象プロジェクトの取得
+			// 更新対象の取得
 			const ref = doc(db, COLLECTION_NAMES.PHASE_GROUPS, uid);
 			const newData = {
 				...updates,
@@ -104,7 +104,7 @@ export const useMaster = () => {
 
 			dispatch({ type: 'UPDATE_PHASE_GROUP', payload: newData });
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : 'プロジェクトの更新中にエラーが発生しました。';
+			const errMsg = err instanceof Error ? err.message : 'フェーズグループの更新中にエラーが発生しました。';
 			dispatch({ type: 'SET_ERROR', payload: errMsg });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
@@ -112,14 +112,6 @@ export const useMaster = () => {
 	}, [userData, dispatch]);
 
 	// グループマスタの削除
-	/**
-	 * 1. 削除対象のグループUIDを親に持つ子グループを取得
-	 * 2. 子グループがあれば、1同様に子グループを親に持つ子グループを取得(すべての関連するグループを取得)
-	 * 3. 取得した関連グループUIDを配列にして、ループさせる
-	 * 4. ループ内で、グループUIDを親に持つフェーズを全て取得する
-	 * 5. グループUIDを親に持つフェーズの数だけループして、フェーズUIDを親に持つタスクを全て取得する
-	 * 
-	 */
 	const deletePhaseGroup = useCallback(async (uid: string) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
@@ -175,7 +167,7 @@ export const useMaster = () => {
 			dispatch({ type: 'SET_PHASES', payload: phases });
 			dispatch({ type: 'SET_TASK_MASTERS', payload: tasks });
 		} catch (err) {
-			const error = err instanceof Error ? err.message : 'プロジェクトの削除中にエラーが発生しました';
+			const error = err instanceof Error ? err.message : 'フェーズグループの削除中にエラーが発生しました';
 			dispatch({ type: 'SET_ERROR', payload: error });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
@@ -183,16 +175,172 @@ export const useMaster = () => {
 	}, [appData.phases, appData.taskMasters, dispatch]);
 
 	// フェーズマスタの追加
+	const addPhase = useCallback(async (data: Omit<Phase, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			const rawId = crypto.randomUUID();
+			const customUid = `p-${rawId}`;
+
+			const newData: Phase = {
+				...data,
+				uid: customUid,
+				createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				createdBy: userData.user?.uid || '',
+				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				updatedBy: userData.user?.uid || '',
+			}
+
+			const ref = doc(db, COLLECTION_NAMES.PHASES, customUid);
+			await setDoc(ref, newData);
+
+			dispatch({ type: 'ADD_PHASE', payload: newData });
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : 'フェーズの作成中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [userData, dispatch]);
 
 	// フェーズマスタの更新
+	const updatePhase = useCallback(async (uid: string, updates: Phase) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			// 更新対象の取得
+			const ref = doc(db, COLLECTION_NAMES.PHASES, uid);
+			const newData = {
+				...updates,
+				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				updatedBy: userData.user?.uid || '',
+			};
+
+			await updateDoc(ref, newData);
+
+			dispatch({ type: 'UPDATE_PHASE', payload: newData });
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : 'フェーズの更新中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [userData, dispatch]);
 
 	// フェーズマスタの削除
+	const deletePhase = useCallback(async (uid: string) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			let tasks = appData.taskMasters;
+
+			// Firestoreコレクション参照
+			const phaseCol = collection(db, COLLECTION_NAMES.PHASES);
+			const taskCol = collection(db, COLLECTION_NAMES.TASK_MASTERS);
+
+			// Firestore バッチ処理
+			const batch = writeBatch(db);
+
+			// 1. タスク取得（フェーズに紐づく）
+			const taskQuery = query(taskCol, where('phaseUid', '==', uid));
+			const taskSnapshot = await getDocs(taskQuery);
+
+			for (const taskDoc of taskSnapshot.docs) {
+				batch.delete(doc(taskCol, taskDoc.id)); // タスク削除
+				tasks = tasks.filter(t => t.uid !== taskDoc.id);
+			}
+
+			// 2. 最後にフェーズ自体を削除
+			batch.delete(doc(phaseCol, uid));
+
+			// 3. 一括で削除を実行
+			await batch.commit();
+			console.log(`Deleted phase ${uid} and all descendants`);
+
+			dispatch({ type: 'DELETE_PHASE', payload: uid });
+			dispatch({ type: 'SET_TASK_MASTERS', payload: tasks });
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'フェーズグループの削除中にエラーが発生しました';
+			dispatch({ type: 'SET_ERROR', payload: error });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [appData.taskMasters, dispatch]);
 
 	// タスクマスタの追加
+	const addTask = useCallback(async (data: Omit<TaskMaster, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			const rawId = crypto.randomUUID();
+			const customUid = `tm-${rawId}`;
+
+			const newData: TaskMaster = {
+				...data,
+				uid: customUid,
+				createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				createdBy: userData.user?.uid || '',
+				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				updatedBy: userData.user?.uid || '',
+			}
+
+			const ref = doc(db, COLLECTION_NAMES.TASK_MASTERS, customUid);
+			await setDoc(ref, newData);
+
+			dispatch({ type: 'ADD_TASK_MASTER', payload: newData });
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : 'タスクマスタの作成中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [userData, dispatch]);
 
 	// タスクマスタの更新
+	const updateTask = useCallback(async (uid: string, updates: TaskMaster) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			// 更新対象の取得
+			const ref = doc(db, COLLECTION_NAMES.TASK_MASTERS, uid);
+			const newData = {
+				...updates,
+				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+				updatedBy: userData.user?.uid || '',
+			};
+
+			await updateDoc(ref, newData);
+
+			dispatch({ type: 'UPDATE_TASK_MASTER', payload: newData });
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : 'タスクマスタの更新中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [userData, dispatch]);
 
 	// タスクマスタの削除
+	const deleteTask = useCallback(async (uid: string) => {
+		dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			await deleteDoc(doc(db, COLLECTION_NAMES.TASK_MASTERS, uid));
+
+			dispatch({ type: 'DELETE_TASK_MASTER', payload: uid });
+		} catch (err) {
+			const error = err instanceof Error ? err.message : 'タスクマスタの削除中にエラーが発生しました';
+			dispatch({ type: 'SET_ERROR', payload: error });
+		} finally {
+			dispatch({ type: 'SET_LOADING', payload: false });
+		}
+	}, [dispatch]);
 
 	return {
 		phaseGroups: appData.phaseGroups,
@@ -203,6 +351,12 @@ export const useMaster = () => {
 		fecthAllMasters,
 		addPhaseGroup,
 		updatePhaseGroup,
-		deletePhaseGroup
-	}
+		deletePhaseGroup,
+		addPhase,
+		updatePhase,
+		deletePhase,
+		addTask,
+		updateTask,
+		deleteTask
+	};
 }

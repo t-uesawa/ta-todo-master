@@ -4,9 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useApp } from '../../../../contexts/AppContext';
-import { useAuth } from '../../../../contexts/AuthContext';
 import { Phase } from '../../../../types';
+import { useMaster } from '@/hooks/data/use-master';
+import { toast } from 'sonner';
 
 interface PhaseFormProps {
   isOpen: boolean;
@@ -16,43 +16,47 @@ interface PhaseFormProps {
 }
 
 export function PhaseForm({ isOpen, onClose, editingPhase, parentGroupUid }: PhaseFormProps) {
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
+  const { phaseGroups, loading, addPhase, updatePhase } = useMaster();
+
   const [phaseName, setPhaseName] = useState(editingPhase?.phaseName || '');
   const [groupUid, setGroupUid] = useState(editingPhase?.parentGroupUid || parentGroupUid);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!phaseName.trim() || !parentGroupUid) return;
+    try {
+      if (!phaseName.trim()) throw new Error('フェーズ名が入力されていません');
+      if (!parentGroupUid) throw new Error('フェーズグループの選択は必須です');
 
-    const now = new Date();
+      if (editingPhase) {
+        const newPhase: Phase = {
+          ...editingPhase,
+          phaseName: phaseName.trim(),
+          parentGroupUid: groupUid,
+        };
+        await updatePhase(editingPhase.uid, newPhase);
+      } else {
+        const newPhase = {
+          parentGroupUid: groupUid,
+          phaseName: phaseName.trim(),
+        };
+        await addPhase(newPhase);
+      }
 
-    if (editingPhase) {
-      const updatedPhase: Phase = {
-        ...editingPhase,
-        phaseName: phaseName.trim(),
-        parentGroupUid: groupUid,
-        updatedBy: authState.user?.uid || '',
-        updatedAt: now
-      };
-      dispatch({ type: 'UPDATE_PHASE', payload: updatedPhase });
-    } else {
-      const newPhase: Phase = {
-        uid: `p_${Date.now()}`,
-        parentGroupUid: groupUid,
-        phaseName: phaseName.trim(),
-        createdBy: authState.user?.uid || '',
-        createdAt: now,
-        updatedBy: authState.user?.uid || '',
-        updatedAt: now
-      };
-      dispatch({ type: 'ADD_PHASE', payload: newPhase });
+      toast.success('成功!', {
+        description: '正常に更新が完了しました'
+      });
+
+      setPhaseName('');
+      setGroupUid('');
+      onClose();
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'フェーズの更新に失敗しました';
+      toast.error('失敗!', {
+        description: errMsg,
+      });
+      return;
     }
-
-    setPhaseName('');
-    setGroupUid('');
-    onClose();
   };
 
   const handleClose = () => {
@@ -71,6 +75,14 @@ export function PhaseForm({ isOpen, onClose, editingPhase, parentGroupUid }: Pha
       setGroupUid(editingPhase.parentGroupUid);
     }
   }, [editingPhase, parentGroupUid]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -103,7 +115,7 @@ export function PhaseForm({ isOpen, onClose, editingPhase, parentGroupUid }: Pha
                   <SelectValue placeholder="フェーズグループを選択..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {appState.phaseGroups.map(group => (
+                  {phaseGroups.map(group => (
                     <SelectItem key={group.uid} value={group.uid}>
                       {group.groupName}
                     </SelectItem>

@@ -10,14 +10,15 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useMaster } from '@/hooks/data/use-master';
 
 export function MasterManagement() {
-  // const { dispatch } = useApp();
   const {
     phaseGroups,
     phases,
     taskMasters,
     loading,
     fecthAllMasters,
-    deletePhaseGroup
+    deletePhaseGroup,
+    deletePhase,
+    deleteTask,
   } = useMaster();
   // const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
@@ -92,10 +93,10 @@ export function MasterManagement() {
         deletePhaseGroup(deleteTarget.uid);
         break;
       case 'phase':
-        // dispatch({ type: 'DELETE_PHASE', payload: deleteTarget.uid });
+        deletePhase(deleteTarget.uid);
         break;
       case 'taskMaster':
-        // dispatch({ type: 'DELETE_TASK_MASTER', payload: deleteTarget.uid });
+        deleteTask(deleteTarget.uid);
         break;
     }
 
@@ -105,7 +106,6 @@ export function MasterManagement() {
 
   // 開くフォームのタイプと親のuidを渡す
   const handleFormOpen = (openType: 'phaseGroup' | 'phase' | 'taskMaster', parentUid: string) => {
-    console.log('add', parentUid);
     switch (openType) {
       case 'phaseGroup':
         setParentGroupUid(parentUid);

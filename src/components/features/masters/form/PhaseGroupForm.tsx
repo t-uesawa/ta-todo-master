@@ -21,7 +21,7 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup, parentGroup
   const [groupName, setGroupName] = useState<string>('');
   const [groupUid, setGroupUid] = useState<string>(editingPhaseGroup?.parentGroupUid || parentGroupUid);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
@@ -33,13 +33,13 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup, parentGroup
           groupName: groupName.trim(),
           parentGroupUid: groupUid,
         };
-        updatePhaseGroup(editingPhaseGroup.uid, newPhaseGroup);
+        await updatePhaseGroup(editingPhaseGroup.uid, newPhaseGroup);
       } else {
         const newPhaseGroup = {
           groupName: groupName.trim(),
           parentGroupUid: groupUid,
         };
-        addPhaseGroup(newPhaseGroup);
+        await addPhaseGroup(newPhaseGroup);
       }
 
       toast.success('成功!', {
@@ -60,6 +60,7 @@ export function PhaseGroupForm({ isOpen, onClose, editingPhaseGroup, parentGroup
 
   const handleClose = () => {
     setGroupName(editingPhaseGroup?.groupName || '');
+    setGroupUid(editingPhaseGroup?.parentGroupUid || '');
     onClose();
   };
 

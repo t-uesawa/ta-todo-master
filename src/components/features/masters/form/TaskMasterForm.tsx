@@ -5,9 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useApp } from '../../../../contexts/AppContext';
-import { useAuth } from '../../../../contexts/AuthContext';
 import { Phase, TaskMaster } from '../../../../types';
+import { useMaster } from '@/hooks/data/use-master';
+import { toast } from 'sonner';
 
 interface TaskMasterFormProps {
   isOpen: boolean;
@@ -17,41 +17,42 @@ interface TaskMasterFormProps {
 }
 
 export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhaseUid }: TaskMasterFormProps) {
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
+  const { phaseGroups, phases, loading, addTask, updateTask } = useMaster();
+
   const [taskName, setTaskName] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [phaseUid, setPhaseUid] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!taskName.trim() || !phaseUid) return;
+    try {
+      if (!taskName.trim()) throw new Error('タスクマスタ名が入力されていません');
+      if (!phaseUid) throw new Error('フェーズが選択されていません');
 
-    const now = new Date();
+      if (editingTaskMaster) {
+        const newTaskMaster: TaskMaster = {
+          ...editingTaskMaster,
+          taskName: taskName.trim(),
+          taskDescription: taskDescription.trim() || undefined,
+          phaseUid,
+        };
+        await updateTask(editingTaskMaster.uid, newTaskMaster);
+      } else {
+        const newTaskMaster = {
+          phaseUid,
+          taskName: taskName.trim(),
+          taskDescription: taskDescription.trim() || undefined,
+        };
+        await addTask(newTaskMaster);
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'フェーズグループの更新に失敗しました';
+      toast.error('失敗!', {
+        description: errMsg,
+      });
+      return;
 
-    if (editingTaskMaster) {
-      const updatedTaskMaster: TaskMaster = {
-        ...editingTaskMaster,
-        taskName: taskName.trim(),
-        taskDescription: taskDescription.trim() || undefined,
-        phaseUid,
-        updatedBy: authState.user?.uid || '',
-        updatedAt: now
-      };
-      dispatch({ type: 'UPDATE_TASK_MASTER', payload: updatedTaskMaster });
-    } else {
-      const newTaskMaster: TaskMaster = {
-        uid: `tm_${Date.now()}`,
-        phaseUid,
-        taskName: taskName.trim(),
-        taskDescription: taskDescription.trim() || undefined,
-        createdBy: authState.user?.uid || '',
-        createdAt: now,
-        updatedBy: authState.user?.uid || '',
-        updatedAt: now
-      };
-      dispatch({ type: 'ADD_TASK_MASTER', payload: newTaskMaster });
     }
 
     setTaskName('');
@@ -68,7 +69,7 @@ export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhase
   };
 
   const getPhaseDisplayName = (phase: Phase) => {
-    const phaseGroup = appState.phaseGroups.find(pg => pg.uid === phase.parentGroupUid);
+    const phaseGroup = phaseGroups.find(pg => pg.uid === phase.parentGroupUid);
     return `${phaseGroup?.groupName || '不明'} > ${phase.phaseName}`;
   };
 
@@ -83,6 +84,14 @@ export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhase
       setTaskDescription(editingTaskMaster.taskDescription ?? '');
     }
   }, [parentPhaseUid, editingTaskMaster]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -104,7 +113,7 @@ export function TaskMasterForm({ isOpen, onClose, editingTaskMaster, parentPhase
                   <SelectValue placeholder="フェーズを選択..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {appState.phases.map(phase => (
+                  {phases.map(phase => (
                     <SelectItem key={phase.uid} value={phase.uid}>
                       {getPhaseDisplayName(phase)}
                     </SelectItem>

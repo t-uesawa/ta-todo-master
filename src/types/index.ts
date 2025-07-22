@@ -9,18 +9,19 @@ export interface User {
 
 // 工事
 export interface Construction {
-  uid: string;
-  kojiCode: string;
-  kojiBango: string;
-  kojiFullName: string;
-  kojiName: string;
-  ankenNo: string;
-  orderer: string;
-  startDate: string;
-  endDate: string;
-  contractDate: string;
-  contractAmount: number;
-  deliveryStatus: 0 | 1 | 2;
+  id: string;	// uid
+  code: string;	// 5桁の工事番号
+  label: string;	// 工事名(略称)
+  fullLabel: string;	// 工事名
+  start: string;	// 工事開始日
+  end: string;	// 竣工日
+  locations?: { lng: number, lat: number }[];	// 位置情報(緯度経度)
+  caseNumber?: string;	// 4桁案件番号
+  client?: string;	// 発注者名
+  completionFlag?: string;	// 1:未完成, 2:社内完成, 3:引渡し済み
+  contractAmount?: string;	// 契約金額
+  contractDate?: string;	// 契約日(YYYY-MM-DD)
+  displayFlag: boolean;	// 表示フラグ
 }
 
 // プロジェクト
