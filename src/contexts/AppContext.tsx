@@ -10,25 +10,34 @@ interface AppState {
   taskMasters: TaskMaster[];
   constructions: Construction[];
   taskFilter: TaskFilter;
+  loading: boolean;
+  error: string | null;
 }
 
-type AppAction = 
+type AppAction =
   | { type: 'SET_TASK_FILTER'; payload: TaskFilter }
+  | { type: 'SET_PROJECTS'; payload: Project[] }
   | { type: 'ADD_PROJECT'; payload: Project }
   | { type: 'UPDATE_PROJECT'; payload: Project }
   | { type: 'DELETE_PROJECT'; payload: string }
+  | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'UPDATE_TASK'; payload: Task }
   | { type: 'DELETE_TASK'; payload: string }
+  | { type: 'SET_PHASE_GROUPS'; payload: PhaseGroup[] }
   | { type: 'ADD_PHASE_GROUP'; payload: PhaseGroup }
   | { type: 'UPDATE_PHASE_GROUP'; payload: PhaseGroup }
   | { type: 'DELETE_PHASE_GROUP'; payload: string }
+  | { type: 'SET_PHASES'; payload: Phase[] }
   | { type: 'ADD_PHASE'; payload: Phase }
   | { type: 'UPDATE_PHASE'; payload: Phase }
   | { type: 'DELETE_PHASE'; payload: string }
+  | { type: 'SET_TASK_MASTERS'; payload: TaskMaster[] }
   | { type: 'ADD_TASK_MASTER'; payload: TaskMaster }
   | { type: 'UPDATE_TASK_MASTER'; payload: TaskMaster }
-  | { type: 'DELETE_TASK_MASTER'; payload: string };
+  | { type: 'DELETE_TASK_MASTER'; payload: string }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null };
 
 const initialState: AppState = {
   projects: mockProjects,
@@ -37,7 +46,9 @@ const initialState: AppState = {
   phases: mockPhases,
   taskMasters: mockTaskMasters,
   constructions: mockConstructions,
-  taskFilter: {}
+  taskFilter: {},
+  loading: false,
+  error: null
 };
 
 const AppContext = createContext<{
@@ -52,6 +63,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         taskFilter: action.payload
       };
+    case 'SET_PROJECTS':
+      return { ...state, projects: action.payload };
     case 'ADD_PROJECT':
       return {
         ...state,
@@ -60,7 +73,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_PROJECT':
       return {
         ...state,
-        projects: state.projects.map(p => 
+        projects: state.projects.map(p =>
           p.uid === action.payload.uid ? action.payload : p
         )
       };
@@ -69,6 +82,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         projects: state.projects.filter(p => p.uid !== action.payload)
       };
+    case 'SET_TASKS':
+      return { ...state, tasks: action.payload };
     case 'ADD_TASK':
       return {
         ...state,
@@ -77,7 +92,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_TASK':
       return {
         ...state,
-        tasks: state.tasks.map(t => 
+        tasks: state.tasks.map(t =>
           t.uid === action.payload.uid ? action.payload : t
         )
       };
@@ -86,6 +101,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         tasks: state.tasks.filter(t => t.uid !== action.payload)
       };
+    case 'SET_PHASE_GROUPS':
+      return { ...state, phaseGroups: action.payload };
     case 'ADD_PHASE_GROUP':
       return {
         ...state,
@@ -94,7 +111,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_PHASE_GROUP':
       return {
         ...state,
-        phaseGroups: state.phaseGroups.map(pg => 
+        phaseGroups: state.phaseGroups.map(pg =>
           pg.uid === action.payload.uid ? action.payload : pg
         )
       };
@@ -103,6 +120,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         phaseGroups: state.phaseGroups.filter(pg => pg.uid !== action.payload)
       };
+    case 'SET_PHASES':
+      return { ...state, phases: action.payload };
     case 'ADD_PHASE':
       return {
         ...state,
@@ -111,7 +130,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_PHASE':
       return {
         ...state,
-        phases: state.phases.map(p => 
+        phases: state.phases.map(p =>
           p.uid === action.payload.uid ? action.payload : p
         )
       };
@@ -120,6 +139,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         phases: state.phases.filter(p => p.uid !== action.payload)
       };
+    case 'SET_TASK_MASTERS':
+      return { ...state, taskMasters: action.payload };
     case 'ADD_TASK_MASTER':
       return {
         ...state,
@@ -128,7 +149,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'UPDATE_TASK_MASTER':
       return {
         ...state,
-        taskMasters: state.taskMasters.map(tm => 
+        taskMasters: state.taskMasters.map(tm =>
           tm.uid === action.payload.uid ? action.payload : tm
         )
       };
@@ -137,6 +158,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         taskMasters: state.taskMasters.filter(tm => tm.uid !== action.payload)
       };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
     default:
       return state;
   }

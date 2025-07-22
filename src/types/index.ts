@@ -7,6 +7,7 @@ export interface User {
   role: 'admin' | 'manager' | 'member';
 }
 
+// 工事
 export interface Construction {
   uid: string;
   kojiCode: string;
@@ -15,36 +16,39 @@ export interface Construction {
   kojiName: string;
   ankenNo: string;
   orderer: string;
-  startDate: Date;
-  endDate: Date;
-  contractDate: Date;
+  startDate: string;
+  endDate: string;
+  contractDate: string;
   contractAmount: number;
   deliveryStatus: 0 | 1 | 2;
 }
 
+// プロジェクト
 export interface Project {
   uid: string;
   kojiUid?: string;
   projectName: string;
   taskUids: string[];
   projectType: 'construction' | 'general';
+  isCompleted: boolean;
   createdBy: string;
-  createdAt: Date;
+  createdAt: string;
   updatedBy: string;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export interface Task {
   uid: string;
   projectUid: string;
   taskMasterUid?: string;
+  taskName?: string;
   status: 'not_started' | 'in_progress' | 'completed';
   assigneeUid: string;
   dueDate: Date;
   createdBy: string;
-  createdAt: Date;
+  createdAt: string;
   updatedBy: string;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export interface PhaseGroup {
@@ -52,9 +56,9 @@ export interface PhaseGroup {
   parentGroupUid?: string;
   groupName: string;
   createdBy: string;
-  createdAt: Date;
+  createdAt: string;
   updatedBy: string;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export interface Phase {
@@ -62,9 +66,9 @@ export interface Phase {
   parentGroupUid: string;
   phaseName: string;
   createdBy: string;
-  createdAt: Date;
+  createdAt: string;
   updatedBy: string;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export interface TaskMaster {
@@ -76,9 +80,9 @@ export interface TaskMaster {
   primaryAssignee?: string;
   attachments?: string[];
   createdBy: string;
-  createdAt: Date;
+  createdAt: string;
   updatedBy: string;
-  updatedAt: Date;
+  updatedAt: string;
 }
 
 export interface TaskFilter {
@@ -106,3 +110,11 @@ export type MasterDataResult =
   | { type: 'phase'; data: Phase }
   | { type: 'taskMaster'; data: TaskMaster }
   | { type: 'none'; data: null };
+
+export const COLLECTION_NAMES = {
+  PROJECTS: 'Todo-Projects',
+  TASKS: 'Todo-Tasks',
+  PHASE_GROUPS: 'Todo-PhaseGroup',
+  PHASES: 'Todo-Phase',
+  TASK_MASTERS: 'Todo-TaskMasters'
+}
