@@ -10,6 +10,7 @@ import { useApp } from "@/contexts/AppContext";
 import { Project } from "@/types";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import dayjs from "dayjs";
 import { Building, X } from "lucide-react";
 
 interface ProjectDetailDrawerProps {
@@ -21,7 +22,7 @@ interface ProjectDetailDrawerProps {
 export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: ProjectDetailDrawerProps) => {
 	const { state: appState } = useApp();
 
-	const kouji = appState.constructions.find(c => c.uid === selectedProject.kojiUid);
+	const kouji = appState.constructions.find(c => c.id === selectedProject.kojiUid);
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onClose}>
@@ -42,7 +43,7 @@ export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: Projec
 					<div className="space-y-6">
 						{/** プロジェクト基本情報 */}
 						<div className="space-y-2">
-							<div><strong>選択工事:</strong> {kouji ? `${kouji.kojiCode} | ${kouji.kojiName}` : 'none'}</div>
+							<div><strong>選択工事:</strong> {kouji ? `${kouji.code} | ${kouji.code}` : 'none'}</div>
 							<div><strong>作成者:</strong> {selectedProject.createdBy}</div>
 							<div><strong>作成日時:</strong> {format(selectedProject.createdAt, 'yyyy/MM/dd', { locale: ja })}</div>
 						</ div>
@@ -58,13 +59,13 @@ export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: Projec
 								</CardHeader>
 								<CardContent>
 									{(() => {
-										const koji = appState.constructions.find(c => c.uid === selectedProject.kojiUid);
+										const koji = appState.constructions.find(c => c.id === selectedProject.kojiUid);
 										return koji ? (
 											<div className="space-y-2 text-sm">
-												<div><strong>工事名:</strong> {koji.kojiFullName}</div>
-												<div><strong>発注者:</strong> {koji.orderer}</div>
-												<div><strong>工期:</strong> {format(koji.startDate, 'yyyy/MM/dd', { locale: ja })} ～ {format(koji.endDate, 'yyyy/MM/dd', { locale: ja })}</div>
-												<div><strong>契約金額:</strong> {koji.contractAmount.toLocaleString()}円</div>
+												<div><strong>工事名:</strong> {koji.label}</div>
+												<div><strong>発注者:</strong> {koji.client}</div>
+												<div><strong>工期:</strong> {dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</div>
+												<div><strong>契約金額:</strong> {koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</div>
 											</div>
 										) : null;
 									})()}
@@ -82,13 +83,13 @@ export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: Projec
 							</CardHeader>
 							<CardContent>
 								{(() => {
-									const koji = appState.constructions.find(c => c.uid === selectedProject.kojiUid);
+									const koji = appState.constructions.find(c => c.id === selectedProject.kojiUid);
 									return koji ? (
 										<div className="space-y-2 text-sm">
-											<div><strong>工事名:</strong> {koji.kojiFullName}</div>
-											<div><strong>発注者:</strong> {koji.orderer}</div>
-											<div><strong>工期:</strong> {format(koji.startDate, 'yyyy/MM/dd', { locale: ja })} ～ {format(koji.endDate, 'yyyy/MM/dd', { locale: ja })}</div>
-											<div><strong>契約金額:</strong> {koji.contractAmount.toLocaleString()}円</div>
+											<div><strong>工事名:</strong> {koji.label}</div>
+											<div><strong>発注者:</strong> {koji.client}</div>
+											<div><strong>工期:</strong> {dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</div>
+											<div><strong>契約金額:</strong> {koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</div>
 										</div>
 									) : null;
 								})()}

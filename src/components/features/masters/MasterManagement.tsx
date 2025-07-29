@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PhaseGroupForm } from './form/PhaseGroupForm';
 import { PhaseForm } from './form/PhaseForm';
@@ -15,7 +15,6 @@ export function MasterManagement() {
     phases,
     taskMasters,
     loading,
-    fecthAllMasters,
     deletePhaseGroup,
     deletePhase,
     deleteTask,
@@ -142,10 +141,6 @@ export function MasterManagement() {
         break;
     }
   };
-
-  useEffect(() => {
-    fecthAllMasters();
-  }, []);
 
   if (loading) {
     return (

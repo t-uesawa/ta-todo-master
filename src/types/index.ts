@@ -29,7 +29,7 @@ export interface Project {
   uid: string;
   kojiUid?: string;
   projectName: string;
-  taskUids: string[];
+  tasks: Task[];
   projectType: 'construction' | 'general';
   isCompleted: boolean;
   createdBy: string;
@@ -39,7 +39,7 @@ export interface Project {
 }
 
 export interface Task {
-  uid: string;
+  uid: string;  // {project.uid}(20桁)-{uuid}(20桁)
   projectUid: string;
   taskMasterUid?: string;
   taskName?: string;

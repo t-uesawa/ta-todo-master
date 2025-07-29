@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { Project, Task, PhaseGroup, Phase, TaskMaster, Construction, TaskFilter } from '../types';
-import { mockProjects, mockTasks, mockPhaseGroups, mockPhases, mockTaskMasters, mockConstructions } from '../data/mockData';
+import { mockConstructions } from '../data/mockData';
 
 interface AppState {
   projects: Project[];
@@ -40,11 +40,11 @@ type AppAction =
   | { type: 'SET_ERROR'; payload: string | null };
 
 const initialState: AppState = {
-  projects: mockProjects,
-  tasks: mockTasks,
-  phaseGroups: mockPhaseGroups,
-  phases: mockPhases,
-  taskMasters: mockTaskMasters,
+  projects: [],
+  tasks: [],
+  phaseGroups: [],
+  phases: [],
+  taskMasters: [],
   constructions: mockConstructions,
   taskFilter: {},
   loading: false,

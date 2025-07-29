@@ -21,10 +21,13 @@ import {
   X,
   FileText
 } from 'lucide-react';
-import { useApp } from '../../../contexts/AppContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import { TaskMasterTreeView } from './TaskMasterTreeView';
-import { Project, Task } from '../../../types';
+import { TaskMasterTreeView } from '../TreeView';
+import { Project, Task } from '../../../../types';
+import dayjs from 'dayjs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProject } from '@/hooks/data/use-project';
+import { useMaster } from '@/hooks/data/use-master';
+import { generateUid } from '@/lib/generateUid';
 
 interface ProjectCreationDrawerProps {
   isOpen: boolean;
@@ -47,16 +50,31 @@ const steps = [
 ];
 
 export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: ProjectCreationDrawerProps) {
-  const { state: appState, dispatch } = useApp();
+  const { addProject, updateProject } = useProject();
+  const { constructions, taskMasters } = useMaster();
   const { state: authState } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<ProjectFormData>({
     projectName: editingProject?.projectName || '',
     projectType: editingProject?.projectType || 'construction',
     kojiUid: editingProject?.kojiUid,
-    selectedTaskMasters: [],
+    selectedTaskMasters: editingProject?.tasks.flatMap(task =>
+      task.taskMasterUid ? [task.taskMasterUid] : []
+    ) || [],
     taskAssignments: {}
   });
+
+  const handleClose = () => {
+    onClose();
+    setCurrentStep(1);
+    setFormData({
+      projectName: '',
+      projectType: 'general',
+      kojiUid: undefined,
+      selectedTaskMasters: [],
+      taskAssignments: {}
+    });
+  };
 
   const handleNext = () => {
     if (currentStep < 3) {
@@ -97,58 +115,76 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
     }));
   };
 
-  const handleSubmit = () => {
-    const projectUid = editingProject?.uid || `proj_${Date.now()}`;
-    const now = new Date();
-
-    const newProject: Project = {
-      uid: projectUid,
-      kojiUid: formData.kojiUid,
-      projectName: formData.projectName,
-      taskUids: formData.selectedTaskMasters.map(tmUid => `task_${projectUid}_${tmUid}`),
-      projectType: formData.projectType,
-      createdBy: authState.user?.uid || '',
-      createdAt: editingProject?.createdAt || now,
-      updatedBy: authState.user?.uid || '',
-      updatedAt: now
-    };
-
-    const newTasks: Task[] = formData.selectedTaskMasters.map(tmUid => ({
-      uid: `task_${projectUid}_${tmUid}`,
-      projectUid,
-      taskMasterUid: tmUid,
-      status: 'not_started' as const,
-      assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
-      dueDate: formData.taskAssignments[tmUid].dueDate,
-      createdBy: authState.user?.uid || '',
-      createdAt: now,
-      updatedBy: authState.user?.uid || '',
-      updatedAt: now
-    }));
-
+  const handleSubmit = async () => {
     if (editingProject) {
-      dispatch({ type: 'UPDATE_PROJECT', payload: newProject });
-      // 既存のタスクを削除して新しいタスクを追加
-      editingProject.taskUids.forEach(taskUid => {
-        dispatch({ type: 'DELETE_TASK', payload: taskUid });
+      const newProject: Project = {
+        ...editingProject,
+        kojiUid: formData.kojiUid,
+        projectName: formData.projectName,
+        projectType: formData.projectType,
+      }
+
+      const newTasks: Task[] = [];
+
+      formData.selectedTaskMasters.forEach(tm => {
+        const updateTask = editingProject.tasks.find(task => task.taskMasterUid === tm);
+        // 一致するタスクがあれば更新
+        if (updateTask) {
+          newTasks.push({
+            ...updateTask,
+            taskMasterUid: tm,
+            assigneeUid: formData.taskAssignments[tm].assigneeUid,
+            dueDate: formData.taskAssignments[tm].dueDate,
+          });
+        } else {
+          // 一致するタスクがなければ追加
+          const uid = generateUid();
+          newTasks.push({
+            uid: `${editingProject.uid}-${uid}`,
+            projectUid: editingProject.uid,
+            taskMasterUid: tm,
+            taskName: '',
+            status: 'not_started' as const,
+            assigneeUid: formData.taskAssignments[tm].assigneeUid,
+            dueDate: formData.taskAssignments[tm].dueDate,
+            createdBy: '',
+            createdAt: '',
+            updatedBy: '',
+            updatedAt: '',
+          });
+        }
       });
+
+      await updateProject(newProject, newTasks);
     } else {
-      dispatch({ type: 'ADD_PROJECT', payload: newProject });
+      // プロジェクト新規作成
+      const uid = generateUid();
+      const projectUid = `proj-${uid}`;
+
+      const newProject = {
+        uid: projectUid,
+        kojiUid: formData.kojiUid,
+        projectName: formData.projectName,
+        projectType: formData.projectType,
+        isCompleted: false,
+      };
+
+      const newTasks = formData.selectedTaskMasters.map(tmUid => {
+        const uid = generateUid();
+        return {
+          uid: `${projectUid}-${uid}`,
+          projectUid,
+          taskMasterUid: tmUid,
+          status: 'not_started' as const,
+          assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
+          dueDate: formData.taskAssignments[tmUid].dueDate,
+        }
+      });
+
+      await addProject(newProject, newTasks);
     }
 
-    newTasks.forEach(task => {
-      dispatch({ type: 'ADD_TASK', payload: task });
-    });
-
-    onClose();
-    setCurrentStep(1);
-    setFormData({
-      projectName: '',
-      projectType: 'general',
-      kojiUid: undefined,
-      selectedTaskMasters: [],
-      taskAssignments: {}
-    });
+    handleClose();
   };
 
   const renderStepContent = () => {
@@ -179,17 +215,23 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                 <Label htmlFor="koji">工事選択</Label>
                 <Select
                   value={formData.kojiUid || ''}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, kojiUid: value || undefined, projectName: value }))}
+                  onValueChange={(value) =>
+                    setFormData(prev => ({
+                      ...prev,
+                      kojiUid: value || undefined,
+                      projectName: constructions.find(con => con.id === value)?.label || ''
+                    }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="工事を選択..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {appState.constructions.map(koji => (
-                      <SelectItem key={koji.uid} value={koji.uid}>
+                    {constructions.map(koji => (
+                      <SelectItem key={koji.id} value={koji.id}>
                         <div className="flex flex-col text-left">
-                          <span className="font-medium">{koji.kojiName}</span>
-                          <span className="text-xs text-gray-500">{koji.orderer}</span>
+                          <span className="font-medium">{koji.label}</span>
+                          <span className="text-xs text-gray-500">{koji.client}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -218,13 +260,13 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    const koji = appState.constructions.find(c => c.uid === formData.kojiUid);
+                    const koji = constructions.find(c => c.id === formData.kojiUid);
                     return koji ? (
                       <div className="space-y-2 text-sm">
-                        <div><strong>工事名:</strong> {koji.kojiFullName}</div>
-                        <div><strong>発注者:</strong> {koji.orderer}</div>
-                        <div><strong>工期:</strong> {format(koji.startDate, 'yyyy/MM/dd', { locale: ja })} ～ {format(koji.endDate, 'yyyy/MM/dd', { locale: ja })}</div>
-                        <div><strong>契約金額:</strong> {koji.contractAmount.toLocaleString()}円</div>
+                        <div><strong>工事名:</strong> {koji.label}</div>
+                        <div><strong>発注者:</strong> {koji.client}</div>
+                        <div><strong>工期:</strong> {dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</div>
+                        <div><strong>契約金額:</strong> {koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</div>
                       </div>
                     ) : null;
                   })()}
@@ -253,7 +295,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                 <p className="text-sm text-gray-600 mb-2">選択されたタスク: {formData.selectedTaskMasters.length}件</p>
                 <div className="flex flex-wrap gap-2">
                   {formData.selectedTaskMasters.map(tmUid => {
-                    const taskMaster = appState.taskMasters.find(tm => tm.uid === tmUid);
+                    const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
                     return taskMaster ? (
                       <Badge key={tmUid} variant="secondary">
                         {taskMaster.taskName}
@@ -275,7 +317,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
             </div>
             <div className="space-y-4">
               {formData.selectedTaskMasters.map(tmUid => {
-                const taskMaster = appState.taskMasters.find(tm => tm.uid === tmUid);
+                const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
                 const assignment = formData.taskAssignments[tmUid];
 
                 return taskMaster ? (
@@ -361,7 +403,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
@@ -408,7 +450,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         <div className="flex items-center justify-between pt-6 border-t">
           <Button
             variant="outline"
-            onClick={currentStep === 1 ? onClose : handlePrevious}
+            onClick={currentStep === 1 ? handleClose : handlePrevious}
             className="flex items-center gap-2"
           >
             {currentStep === 1 ? (

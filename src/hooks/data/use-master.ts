@@ -10,7 +10,7 @@ import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Phase, PhaseGroup, TaskMaster } from "@/types";
 import dayjs from "dayjs";
 import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
 export const useMaster = () => {
@@ -58,6 +58,12 @@ export const useMaster = () => {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
 	}
+
+	useEffect(() => {
+		if (!userData.user) return;
+		// 初回データ取得
+		fecthAllMasters();
+	}, [userData]);
 
 	// グループマスタの追加
 	const addPhaseGroup = useCallback(async (data: Omit<PhaseGroup, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => {
@@ -346,6 +352,7 @@ export const useMaster = () => {
 	}, [dispatch]);
 
 	return {
+		constructions: appData.constructions,
 		phaseGroups: appData.phaseGroups,
 		phases: appData.phases,
 		taskMasters: appData.taskMasters,

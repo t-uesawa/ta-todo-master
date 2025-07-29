@@ -1,3 +1,7 @@
+/**
+ * プロジェクト一覧メインコンポーネント
+ */
+
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -15,16 +19,17 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
-import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { ProjectCreationDrawer } from './ProjectCreationDrawer';
+import { ProjectCreationDrawer } from './drawer/ProjectCreationDrawer';
 import { Project } from '../../../types';
 import { useResponsive } from '@/hooks/useResponsive';
 import { cn } from '@/lib/utils';
-import { ProjectDetailDrawer } from './ProjectDetailDrawer';
+import { ProjectDetailDrawer } from './drawer/ProjectDetailDrawer';
+import { useProject } from '@/hooks/data/use-project';
+import { mockConstructions } from '@/data/mockData';
 
 export function ProjectList() {
-  const { state: appState, dispatch } = useApp();
+  const { projects, tasks, deleteProject } = useProject();
   const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
   const [creationDrawerOpen, setCreationDrawerOpen] = useState(false);
@@ -35,15 +40,15 @@ export function ProjectList() {
   const [deleteTarget, setDeleteTarget] = useState<{ uid: string; name: string } | null>(null);
 
   const getConstruction = (constructionUid: string) => {
-    return appState.constructions.find(c => c.uid === constructionUid);
+    return mockConstructions.find(c => c.id === constructionUid);
   }
 
   const getProjectTaskCount = (projectUid: string) => {
-    return appState.tasks.filter(t => t.projectUid === projectUid).length;
+    return tasks.filter(t => t.projectUid === projectUid).length;
   };
 
   const getProjectCompletedTaskCount = (projectUid: string) => {
-    return appState.tasks.filter(t => t.projectUid === projectUid && t.status === 'completed').length;
+    return tasks.filter(t => t.projectUid === projectUid && t.status === 'completed').length;
   };
 
   const getCreatorName = (createdBy: string) => {
@@ -80,15 +85,8 @@ export function ProjectList() {
   const confirmDelete = () => {
     if (!deleteTarget) return;
 
-    // プロジェクトに関連するタスクも削除
-    const project = appState.projects.find(p => p.uid === deleteTarget.uid);
-    if (project) {
-      project.taskUids.forEach(taskUid => {
-        dispatch({ type: 'DELETE_TASK', payload: taskUid });
-      });
-    }
+    deleteProject(deleteTarget.uid);
 
-    dispatch({ type: 'DELETE_PROJECT', payload: deleteTarget.uid });
     setDeleteConfirmOpen(false);
     setDeleteTarget(null);
   };
@@ -117,7 +115,7 @@ export function ProjectList() {
       <div className="flex-1 overflow-hidden p-1">
         <div className="h-full overflow-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {appState.projects.map(project => {
+            {projects.map(project => {
               const construction = project.kojiUid ? getConstruction(project.kojiUid) : undefined;
               const taskCount = getProjectTaskCount(project.uid);
               const completedTaskCount = getProjectCompletedTaskCount(project.uid);
@@ -145,7 +143,7 @@ export function ProjectList() {
                     </div>
                     <CardTitle className="text-lg">{project.projectName}</CardTitle>
                     <CardDescription>
-                      {construction?.kojiCode || '一般プロジェクト'}
+                      {construction?.code || '一般プロジェクト'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -175,7 +173,7 @@ export function ProjectList() {
                       {construction && (
                         <div className="flex items-center gap-2">
                           <Building className="h-4 w-4 text-gray-400" />
-                          <span>発注者: {construction.orderer}</span>
+                          <span>発注者: {construction.client}</span>
                         </div>
                       )}
                     </div>
@@ -185,7 +183,7 @@ export function ProjectList() {
             })}
           </div>
 
-          {appState.projects.length === 0 && (
+          {projects.length === 0 && (
             <div className="text-center py-12">
               <FolderOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-4">プロジェクトがありません。</p>
