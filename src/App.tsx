@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
@@ -12,9 +12,15 @@ import { MasterManagement } from './components/features/masters/MasterManagement
 import { useResponsive } from './hooks/useResponsive';
 import { Test } from './components/features/test/Test';
 import { Toaster } from './components/ui/sonner';
+import { useProject } from './hooks/data/use-project';
+import { useMaster } from './hooks/data/use-master';
+import { toast } from 'sonner';
 
 function AppContent() {
-  const { state: authState } = useAuth();
+  console.log('App.tsx レンダリング');
+  const { loading: projectLoading, error: projectError, fetchProjects } = useProject();
+  const { loading: masterLoading, error: masterError, fetchAllMasters } = useMaster();
+  const { state } = useAuth();
   const { isMobile } = useResponsive();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
@@ -22,8 +28,34 @@ function AppContent() {
     setCurrentPage(page);
   };
 
-  if (!authState.isAuthenticated) {
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchProjects();
+      await fetchAllMasters();
+    }
+    if (state.isAuthenticated) {
+      fetchData();
+    }
+  }, [state]);
+
+  if (!state.isAuthenticated) {
     return <LoginForm />;
+  }
+
+  if (projectError) {
+    toast.error(projectError);
+  }
+
+  if (masterError) {
+    toast.error(masterError);
+  }
+
+  if (projectLoading || masterLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
   const renderCurrentPage = () => {

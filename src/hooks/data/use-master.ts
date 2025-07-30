@@ -10,7 +10,7 @@ import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Phase, PhaseGroup, TaskMaster } from "@/types";
 import dayjs from "dayjs";
 import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
 export const useMaster = () => {
@@ -18,7 +18,7 @@ export const useMaster = () => {
 	const { state: userData } = useAuth();
 
 	// 全マスタの取得
-	const fecthAllMasters = async () => {
+	const fetchAllMasters = async () => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
@@ -59,11 +59,14 @@ export const useMaster = () => {
 		}
 	}
 
-	useEffect(() => {
-		if (!userData.user) return;
-		// 初回データ取得
-		fecthAllMasters();
-	}, [userData]);
+	// const fetchedRef = useRef(false);
+
+	// useEffect(() => {
+	// 	if (!userData.user || fetchedRef.current) return;
+
+	// 	fetchedRef.current = true; // ✅ もう取得しない
+	// 	fecthAllMasters();
+	// }, [userData.user]);
 
 	// グループマスタの追加
 	const addPhaseGroup = useCallback(async (data: Omit<PhaseGroup, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => {
@@ -358,7 +361,7 @@ export const useMaster = () => {
 		taskMasters: appData.taskMasters,
 		loading: appData.loading,
 		error: appData.error,
-		fecthAllMasters,
+		fetchAllMasters,
 		addPhaseGroup,
 		updatePhaseGroup,
 		deletePhaseGroup,

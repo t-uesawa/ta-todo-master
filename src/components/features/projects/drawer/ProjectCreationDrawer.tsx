@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import {
@@ -28,6 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/hooks/data/use-project';
 import { useMaster } from '@/hooks/data/use-master';
 import { generateUid } from '@/lib/generateUid';
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface ProjectCreationDrawerProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ const steps = [
 ];
 
 export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: ProjectCreationDrawerProps) {
-  const { addProject, updateProject } = useProject();
+  const { error, addProject, updateProject } = useProject();
   const { constructions, taskMasters } = useMaster();
   const { state: authState } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -61,8 +61,21 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
     selectedTaskMasters: editingProject?.tasks.flatMap(task =>
       task.taskMasterUid ? [task.taskMasterUid] : []
     ) || [],
-    taskAssignments: {}
+    taskAssignments: editingProject?.tasks.reduce((acc, task) => {
+      if (task.assigneeUid && task.dueDate) {
+        acc[task.uid] = {
+          assigneeUid: task.assigneeUid,
+          dueDate: task.dueDate,
+        };
+      }
+      return acc;
+    }, {} as Record<string, { assigneeUid: string; dueDate: Date }>) || {}
   });
+  const [calendarOpenMap, setCalendarOpenMap] = useState<Record<string, boolean>>({});
+
+  const setCalendarOpen = (tmUid: string, open: boolean) => {
+    setCalendarOpenMap(prev => ({ ...prev, [tmUid]: open }));
+  };
 
   const handleClose = () => {
     onClose();
@@ -163,11 +176,12 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
 
       const newProject = {
         uid: projectUid,
-        kojiUid: formData.kojiUid,
+        ...(formData.kojiUid && { kojiUid: formData.kojiUid }),
         projectName: formData.projectName,
         projectType: formData.projectType,
         isCompleted: false,
       };
+      if (formData.kojiUid) newProject.kojiUid = formData.kojiUid;
 
       const newTasks = formData.selectedTaskMasters.map(tmUid => {
         const uid = generateUid();
@@ -184,8 +198,34 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       await addProject(newProject, newTasks);
     }
 
+    if (error) {
+      return;
+    }
+
     handleClose();
   };
+
+  useEffect(() => {
+    if (!editingProject) return;
+
+    setFormData({
+      projectName: editingProject.projectName || '',
+      projectType: editingProject.projectType || 'construction',
+      kojiUid: editingProject.kojiUid,
+      selectedTaskMasters: editingProject.tasks.flatMap(task =>
+        task.taskMasterUid ? [task.taskMasterUid] : []
+      ),
+      taskAssignments: editingProject?.tasks.reduce((acc, task) => {
+        if (task.assigneeUid && task.dueDate) {
+          acc[task.uid] = {
+            assigneeUid: task.assigneeUid,
+            dueDate: task.dueDate,
+          };
+        }
+        return acc;
+      }, {} as Record<string, { assigneeUid: string; dueDate: Date }>) || {}
+    });
+  }, [editingProject]);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -320,6 +360,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                 const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
                 const assignment = formData.taskAssignments[tmUid];
 
+                console.log(assignment);
                 return taskMaster ? (
                   <Card key={tmUid}>
                     <CardHeader className="pb-3">
@@ -354,22 +395,33 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
 
                         <div className="space-y-2">
                           <Label>期日</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
+                          <Dialog open={calendarOpenMap[tmUid] || false} onOpenChange={(open) => setCalendarOpen(tmUid, open)}>
+                            <DialogTrigger asChild>
                               <Button variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {assignment?.dueDate ? format(assignment.dueDate, 'yyyy/MM/dd', { locale: ja }) : '期日を選択...'}
+                                {assignment?.dueDate
+                                  ? format(assignment.dueDate, 'yyyy/MM/dd', { locale: ja })
+                                  : '期日を選択...'}
                               </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
+                            </DialogTrigger>
+                            <DialogContent className="w-auto p-6">
+                              <DialogTitle>期日設定</DialogTitle>
+                              <DialogDescription>{`「${taskMaster.taskName}」の期日を設定`}</DialogDescription>
                               <Calendar
                                 mode="single"
-                                selected={assignment?.dueDate}
-                                onSelect={(date) => date && handleAssignmentChange(tmUid, 'dueDate', date)}
+                                captionLayout="dropdown"
+                                selected={assignment?.dueDate ?? undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    handleAssignmentChange(tmUid, 'dueDate', date);
+                                    setCalendarOpen(tmUid, false);
+                                  }
+                                }}
                                 initialFocus
+                                disabled={(date) => date < new Date()} // 過去の日付は無効化
                               />
-                            </PopoverContent>
-                          </Popover>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     </CardContent>

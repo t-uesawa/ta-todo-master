@@ -114,6 +114,21 @@ const CustomTreeItem = React.forwardRef(
       }
     };
 
+    // 子にtaskMaster要素を持っていればtureを返す関数
+    function containsTaskMaster(nodes: TreeNode[]): boolean {
+      const hasTaskMaster = (node: TreeNode): boolean => {
+        if (node.type === 'task') {
+          return true;
+        }
+        if (node.children) {
+          return node.children.some(hasTaskMaster); // 子にもいるかチェック
+        }
+        return false;
+      };
+
+      return nodes.some(hasTaskMaster); // 全体を走査して1件でもあれば true
+    }
+
     return (
       <TreeItemProvider {...getContextProviderProps()}>
         <TreeItemRoot {...getRootProps(other)}>
@@ -123,7 +138,9 @@ const CustomTreeItem = React.forwardRef(
             </TreeItemIconContainer>
             <div className="flex justify-between items-center w-full gap-2">
               <div className='flex items-center gap-2'>
-                <TreeItemCheckbox {...getCheckboxProps()} />
+                {((item.children && containsTaskMaster(item.children)) || item.type === 'task') &&
+                  <TreeItemCheckbox {...getCheckboxProps()} />
+                }
                 {getStartIcon(item.type, status.expandable && status.expanded)}
                 <div>
                   <div>
@@ -337,6 +354,7 @@ export function TaskMasterTreeView({
     if (isExpandingRef.current) {
       return; // 展開操作中は選択変更を無視
     }
+
     onSelectionChange(itemIds);
   }, [onSelectionChange]);
 

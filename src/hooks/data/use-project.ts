@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Project, Task } from "@/types";
 import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import dayjs from 'dayjs';
 import { toast } from "sonner";
 
@@ -16,7 +16,7 @@ export const useProject = () => {
 	const { state: userData } = useAuth();
 
 	// プロジェクトの初回取得(未完了プロジェクトとタスクを全取得)
-	const fetchData = async () => {
+	const fetchProjects = async () => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
@@ -56,11 +56,6 @@ export const useProject = () => {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
 	};
-	useEffect(() => {
-		if (!userData.user) return;
-		// 初回データ取得
-		fetchData();
-	}, [userData]);
 
 	// プロジェクトの追加(タスク配列の追加)
 	const addProject = useCallback(async (
@@ -283,6 +278,7 @@ export const useProject = () => {
 		tasks: appData.tasks,
 		loading: appData.loading,
 		error: appData.error,
+		fetchProjects,
 		addProject,
 		updateProject,
 		deleteProject,

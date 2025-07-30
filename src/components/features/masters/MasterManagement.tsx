@@ -10,6 +10,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { useMaster } from '@/hooks/data/use-master';
 
 export function MasterManagement() {
+  console.log('🔥 MasterManagement rendered');
   const {
     phaseGroups,
     phases,
