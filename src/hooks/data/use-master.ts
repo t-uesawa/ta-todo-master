@@ -46,7 +46,7 @@ export const useMaster = () => {
 			const phasesData = phasesSnapshot.docs.map(doc => doc.data() as Phase);
 			const tasksData = tasksSnapshot.docs.map(doc => doc.data() as TaskMaster);
 
-			toast(`${groupsData.length + phasesData.length + tasksData.length}件取得しました`);
+			toast(`【Master】${groupsData.length + phasesData.length + tasksData.length}件取得しました`);
 
 			dispatch({ type: 'SET_PHASE_GROUPS', payload: groupsData });
 			dispatch({ type: 'SET_PHASES', payload: phasesData });

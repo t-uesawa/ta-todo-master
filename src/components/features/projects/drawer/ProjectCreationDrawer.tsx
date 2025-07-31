@@ -13,12 +13,14 @@ import { ja } from 'date-fns/locale';
 import {
   ChevronLeft,
   ChevronRight,
-  Building,
   Users,
   Calendar as CalendarIcon,
   Check,
   X,
-  FileText
+  FileText,
+  HardHat,
+  SquarePen,
+  XIcon
 } from 'lucide-react';
 import { TaskMasterTreeView } from '../TreeView';
 import { Project, Task } from '../../../../types';
@@ -35,17 +37,25 @@ interface ProjectCreationDrawerProps {
   editingProject?: Project | null;
 }
 
+interface FreeTask {
+  id: string; // 'free-' + generateUid() で生成
+  name: string;
+  description?: string;
+  type: 'free';
+}
+
 interface ProjectFormData {
   projectName: string;
   projectType: 'construction' | 'general';
   kojiUid?: string;
-  selectedTaskMasters: string[];
-  taskAssignments: Record<string, { assigneeUid: string; dueDate: Date }>;
+  selectedTaskMasters: string[];  // タスクマスタUID
+  freeTasks: FreeTask[];  // フリータスク
+  taskAssignments: Record<string, { assigneeUid: string; dueDate: string }>;
 }
 
 const steps = [
-  { id: 1, title: 'プロジェクト情報', description: '基本情報を入力' },
-  { id: 2, title: 'タスク選択', description: 'タスクマスタから選択' },
+  { id: 1, title: 'プロジェクト情報', description: 'プロジェクトの基本情報を入力' },
+  { id: 2, title: 'タスク選択', description: 'タスク（やること）を追加' },
   { id: 3, title: 'タスク設定', description: '担当者と期日を設定' }
 ];
 
@@ -53,23 +63,18 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
   const { error, addProject, updateProject } = useProject();
   const { constructions, taskMasters } = useMaster();
   const { state: authState } = useAuth();
+  // フリータスク
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  // プロジェクト
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<ProjectFormData>({
-    projectName: editingProject?.projectName || '',
-    projectType: editingProject?.projectType || 'construction',
-    kojiUid: editingProject?.kojiUid,
-    selectedTaskMasters: editingProject?.tasks.flatMap(task =>
-      task.taskMasterUid ? [task.taskMasterUid] : []
-    ) || [],
-    taskAssignments: editingProject?.tasks.reduce((acc, task) => {
-      if (task.assigneeUid && task.dueDate) {
-        acc[task.uid] = {
-          assigneeUid: task.assigneeUid,
-          dueDate: task.dueDate,
-        };
-      }
-      return acc;
-    }, {} as Record<string, { assigneeUid: string; dueDate: Date }>) || {}
+    projectName: '',
+    projectType: 'construction',
+    kojiUid: '',
+    selectedTaskMasters: [],
+    freeTasks: [],
+    taskAssignments: {}
   });
   const [calendarOpenMap, setCalendarOpenMap] = useState<Record<string, boolean>>({});
 
@@ -85,6 +90,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       projectType: 'general',
       kojiUid: undefined,
       selectedTaskMasters: [],
+      freeTasks: [],
       taskAssignments: {}
     });
   };
@@ -101,6 +107,51 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
     }
   };
 
+  // タスク割り当て設定で使用するすべてのタスクを取得
+  const getAllTasks = () => [
+    ...taskMasters.filter(tm => formData.selectedTaskMasters.includes(tm.uid))
+      .map(tm => ({ id: tm.uid, name: tm.taskName, description: tm.taskDescription, type: 'master' as const })),
+    ...formData.freeTasks.map(ft => ({ id: ft.id, name: ft.name, description: ft.description, type: 'free' as const }))
+  ];
+
+  const handleAddFreeTask = () => {
+    if (!newTaskName.trim()) return;
+
+    const newFreeTask: FreeTask = {
+      id: `free-${generateUid()}`,
+      name: newTaskName.trim(),
+      description: newTaskDescription.trim() || undefined,
+      type: 'free'
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      freeTasks: [...prev.freeTasks, newFreeTask],
+      taskAssignments: {
+        ...prev.taskAssignments,
+        [newFreeTask.id]: {
+          assigneeUid: authState.user?.uid || '',
+          dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
+        }
+      }
+    }));
+
+    setNewTaskName('');
+    setNewTaskDescription('');
+  };
+
+  const handleRemoveFreeTask = (freeTaskId: string) => {
+    setFormData(prev => {
+      const { [freeTaskId]: removed, ...restAssignments } = prev.taskAssignments;
+      console.log(`削除: ${removed}`);
+      return {
+        ...prev,
+        freeTasks: prev.freeTasks.filter(ft => ft.id !== freeTaskId),
+        taskAssignments: restAssignments
+      };
+    });
+  };
+
   const handleTaskMasterSelect = (taskMasterUids: string[]) => {
     setFormData(prev => ({
       ...prev,
@@ -108,14 +159,23 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       taskAssignments: taskMasterUids.reduce((acc, uid) => {
         acc[uid] = prev.taskAssignments[uid] || {
           assigneeUid: authState.user?.uid || '',
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 1週間後
+          dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
         };
         return acc;
-      }, {} as Record<string, { assigneeUid: string; dueDate: Date }>)
+      }, {} as Record<string, { assigneeUid: string; dueDate: string }>)
     }));
   };
 
-  const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate', value: string | Date) => {
+  const handleRemoveTaskMasterSelect = (taskId: string) => {
+    setFormData(prev => {
+      return {
+        ...prev,
+        selectedTaskMasters: prev.selectedTaskMasters.filter(tmId => tmId !== taskId),
+      };
+    });
+  };
+
+  const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate', value: string) => {
     setFormData(prev => ({
       ...prev,
       taskAssignments: {
@@ -129,26 +189,30 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
   };
 
   const handleSubmit = async () => {
-    if (editingProject) {
-      const newProject: Project = {
-        ...editingProject,
-        kojiUid: formData.kojiUid,
-        projectName: formData.projectName,
-        projectType: formData.projectType,
-      }
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+    const userUid = authState.user?.uid || '';
 
+    if (editingProject) {
       const newTasks: Task[] = [];
 
+      // タスクマスタの処理
       formData.selectedTaskMasters.forEach(tm => {
         const updateTask = editingProject.tasks.find(task => task.taskMasterUid === tm);
-        // 一致するタスクがあれば更新
+
+        // データに変更があれば更新
         if (updateTask) {
-          newTasks.push({
-            ...updateTask,
-            taskMasterUid: tm,
-            assigneeUid: formData.taskAssignments[tm].assigneeUid,
-            dueDate: formData.taskAssignments[tm].dueDate,
-          });
+          newTasks.push(
+            updateTask.assigneeUid !== formData.taskAssignments[tm].assigneeUid ||
+              updateTask.dueDate !== formData.taskAssignments[tm].dueDate ?
+              {
+                ...updateTask,
+                taskMasterUid: tm,
+                assigneeUid: formData.taskAssignments[tm].assigneeUid,
+                dueDate: formData.taskAssignments[tm].dueDate,
+                updatedBy: userUid,
+                updatedAt: now,
+              } : updateTask
+          );
         } else {
           // 一致するタスクがなければ追加
           const uid = generateUid();
@@ -160,70 +224,150 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
             status: 'not_started' as const,
             assigneeUid: formData.taskAssignments[tm].assigneeUid,
             dueDate: formData.taskAssignments[tm].dueDate,
-            createdBy: '',
-            createdAt: '',
-            updatedBy: '',
-            updatedAt: '',
+            createdBy: userUid,
+            createdAt: now,
+            updatedBy: userUid,
+            updatedAt: now,
+            deletedBy: '',
+            deletedAt: '',
           });
         }
       });
 
-      await updateProject(newProject, newTasks);
+      // フリータスクの処理
+      formData.freeTasks.forEach(freeTask => {
+        const existingTask = editingProject.tasks.find(task => task.uid === freeTask.id);
+        if (existingTask) {
+          newTasks.push(
+            existingTask.taskName !== freeTask.name ||
+              existingTask.assigneeUid !== formData.taskAssignments[freeTask.id].assigneeUid ||
+              existingTask.dueDate !== formData.taskAssignments[freeTask.id].dueDate ?
+              {
+                ...existingTask,
+                taskName: freeTask.name,
+                assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
+                dueDate: formData.taskAssignments[freeTask.id].dueDate,
+                updatedBy: userUid,
+                updatedAt: now,
+              } : existingTask);
+        } else {
+          newTasks.push({
+            uid: freeTask.id,
+            projectUid: editingProject.uid,
+            taskMasterUid: '',
+            taskName: freeTask.name,
+            status: 'not_started' as const,
+            assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
+            dueDate: formData.taskAssignments[freeTask.id].dueDate,
+            createdBy: userUid,
+            createdAt: now,
+            updatedBy: userUid,
+            updatedAt: now,
+            deletedBy: '',
+            deletedAt: '',
+          });
+        }
+      });
+
+      const newProject: Project = {
+        ...editingProject,
+        ...(formData.kojiUid && { kojiUid: formData.kojiUid }),
+        tasks: newTasks,
+        projectName: formData.projectName,
+        projectType: formData.projectType,
+      }
+
+      await updateProject(newProject);
     } else {
       // プロジェクト新規作成
       const uid = generateUid();
       const projectUid = `proj-${uid}`;
 
-      const newProject = {
+      const newProject: Omit<Project, 'tasks'> = {
         uid: projectUid,
-        ...(formData.kojiUid && { kojiUid: formData.kojiUid }),
+        ...(formData.kojiUid !== undefined && { kojiUid: formData.kojiUid }),
         projectName: formData.projectName,
         projectType: formData.projectType,
         isCompleted: false,
+        createdBy: userUid,
+        createdAt: now,
+        updatedBy: userUid,
+        updatedAt: now,
+        deletedBy: '',
+        deletedAt: '',
       };
-      if (formData.kojiUid) newProject.kojiUid = formData.kojiUid;
 
-      const newTasks = formData.selectedTaskMasters.map(tmUid => {
-        const uid = generateUid();
-        return {
-          uid: `${projectUid}-${uid}`,
+      const allTasksForCreation = [
+        ...formData.selectedTaskMasters.map(tmUid => ({
+          uid: `${projectUid}-${generateUid()}`,
           projectUid,
           taskMasterUid: tmUid,
+          taskName: '', // マスタから自動設定される
           status: 'not_started' as const,
           assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
           dueDate: formData.taskAssignments[tmUid].dueDate,
-        }
-      });
+          createdBy: userUid,
+          createdAt: now,
+          updatedBy: userUid,
+          updatedAt: now,
+          deletedBy: '',
+          deletedAt: '',
+        } as Task)),
+        ...formData.freeTasks.map(freeTask => ({
+          uid: freeTask.id,
+          projectUid,
+          taskMasterUid: '',
+          taskName: freeTask.name,
+          status: 'not_started' as const,
+          assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
+          dueDate: formData.taskAssignments[freeTask.id].dueDate,
+          createdBy: userUid,
+          createdAt: now,
+          updatedBy: userUid,
+          updatedAt: now,
+          deletedBy: '',
+          deletedAt: '',
+        } as Task))
+      ];
 
-      await addProject(newProject, newTasks);
+      await addProject(newProject, allTasksForCreation);
     }
 
     if (error) {
       return;
     }
 
-    handleClose();
+    // handleClose();
   };
 
   useEffect(() => {
     if (!editingProject) return;
 
+    // マスタタスクとフリータスクを分離
+    const masterTasks = editingProject.tasks.filter(task => task.taskMasterUid);
+    const freeTasks = editingProject.tasks.filter(task => !task.taskMasterUid);
+
     setFormData({
       projectName: editingProject.projectName || '',
       projectType: editingProject.projectType || 'construction',
       kojiUid: editingProject.kojiUid,
-      selectedTaskMasters: editingProject.tasks.flatMap(task =>
-        task.taskMasterUid ? [task.taskMasterUid] : []
-      ),
-      taskAssignments: editingProject?.tasks.reduce((acc, task) => {
+      selectedTaskMasters: masterTasks.map(task => task.taskMasterUid!),
+      freeTasks: freeTasks.map(task => ({
+        id: task.uid,
+        name: task.taskName,
+        description: undefined, // 必要に応じて追加
+        type: 'free' as const
+      })),
+      taskAssignments: editingProject.tasks.reduce((acc, task) => {
         if (task.assigneeUid && task.dueDate) {
-          acc[task.uid] = {
+          const key = task.taskMasterUid || task.uid;
+          acc[key] = {
             assigneeUid: task.assigneeUid,
             dueDate: task.dueDate,
           };
         }
         return acc;
-      }, {} as Record<string, { assigneeUid: string; dueDate: Date }>) || {}
+      }, {} as Record<string, { assigneeUid: string; dueDate: string }>)
     });
   }, [editingProject]);
 
@@ -244,8 +388,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="construction">工事プロジェクト</SelectItem>
                   <SelectItem value="general">一般プロジェクト</SelectItem>
-                  <SelectItem value="construction">建設工事</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -264,19 +408,18 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="工事を選択..." />
+                    <SelectValue placeholder="工事マスタを選択..." />
                   </SelectTrigger>
                   <SelectContent>
                     {constructions.map(koji => (
                       <SelectItem key={koji.id} value={koji.id}>
-                        <div className="flex flex-col text-left">
-                          <span className="font-medium">{koji.label}</span>
-                          <span className="text-xs text-gray-500">{koji.client}</span>
-                        </div>
+                        {koji.label}（{koji.client}）
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-muted-foreground text-xs">
+                  *選択肢に工事がない場合は「工事管理アプリ」で表示切替を行ってください。</p>
               </div>
             )}
 
@@ -294,7 +437,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Building className="h-5 w-5" />
+                    <HardHat className="h-5 w-5" />
                     工事情報
                   </CardTitle>
                 </CardHeader>
@@ -303,10 +446,22 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                     const koji = constructions.find(c => c.id === formData.kojiUid);
                     return koji ? (
                       <div className="space-y-2 text-sm">
-                        <div><strong>工事名:</strong> {koji.label}</div>
-                        <div><strong>発注者:</strong> {koji.client}</div>
-                        <div><strong>工期:</strong> {dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</div>
-                        <div><strong>契約金額:</strong> {koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</div>
+                        <div className='w-full flex'>
+                          <p className='w-1/5'>工事名:</p>
+                          <p className='w-4/5'>{koji.label}</p>
+                        </div>
+                        <div className='w-full flex'>
+                          <p className='w-1/5'>発注者:</p>
+                          <p className='w-4/5'>{koji.client}</p>
+                        </div>
+                        <div className='w-full flex'>
+                          <p className='w-1/5'>工期:</p>
+                          <p className='w-4/5'>{dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</p>
+                        </div>
+                        <div className='w-full flex'>
+                          <p className='w-1/5'>契約金額:</p>
+                          <p className='w-4/5'>{koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</p>
+                        </div>
                       </div>
                     ) : null;
                   })()}
@@ -319,29 +474,71 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       case 2:
         return (
           <div className="space-y-4">
+            {/* 既存のタスクマスタ選択 */}
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               <h3 className="text-lg font-semibold">タスクマスタ選択</h3>
             </div>
-            {/** タスクマスタ選択(ツリー) */}
             <TaskMasterTreeView
               type='preview'
               selectedTaskMasters={formData.selectedTaskMasters}
               onSelectionChange={handleTaskMasterSelect}
               onIconButtonClick={() => { }}
             />
-            {formData.selectedTaskMasters.length > 0 && (
+
+            {/* フリータスク追加セクション */}
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <SquarePen className="h-5 w-5" />
+                <h3 className="text-lg font-semibold">一般タスク追加</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <Input
+                  placeholder="タスク名"
+                  value={newTaskName}
+                  onChange={(e) => setNewTaskName(e.target.value)}
+                />
+                <Input
+                  placeholder="説明（任意）"
+                  value={newTaskDescription}
+                  onChange={(e) => setNewTaskDescription(e.target.value)}
+                />
+                <Button
+                  onClick={handleAddFreeTask}
+                  disabled={!newTaskName.trim()}
+                  className="w-full"
+                >
+                  フリータスク追加
+                </Button>
+              </div>
+            </div>
+
+            {/* 選択済みタスク表示（マスタ + フリー統合） */}
+            {(formData.selectedTaskMasters.length > 0 || formData.freeTasks.length > 0) && (
               <div className="mt-4">
-                <p className="text-sm text-gray-600 mb-2">選択されたタスク: {formData.selectedTaskMasters.length}件</p>
+                <p className="text-sm text-gray-600 mb-2">
+                  {/* 選択されたタスク: {formData.selectedTaskMasters.length + formData.freeTasks.length}件 */}
+                  選択されたタスク
+                </p>
                 <div className="flex flex-wrap gap-2">
+                  {/* マスタタスク */}
                   {formData.selectedTaskMasters.map(tmUid => {
                     const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
                     return taskMaster ? (
-                      <Badge key={tmUid} variant="secondary">
+                      <Badge key={tmUid} variant="secondary" className='pr-1 gap-1.5'>
                         {taskMaster.taskName}
+                        <XIcon onClick={() => handleRemoveTaskMasterSelect(tmUid)} className="h-4 w-4" />
                       </Badge>
                     ) : null;
                   })}
+                  {/* フリータスク */}
+                  {formData.freeTasks.map(freeTask => (
+                    <Badge key={freeTask.id} variant="outline" className='pr-1 gap-1.5'>
+                      {freeTask.name}
+                      <XIcon onClick={() => handleRemoveFreeTask(freeTask.id)} className="h-4 w-4" />
+                    </Badge>
+                  ))}
                 </div>
               </div>
             )}
@@ -356,17 +553,20 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
               <h3 className="text-lg font-semibold">タスク設定</h3>
             </div>
             <div className="space-y-4">
-              {formData.selectedTaskMasters.map(tmUid => {
-                const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
-                const assignment = formData.taskAssignments[tmUid];
+              {getAllTasks().map(task => {
+                const assignment = formData.taskAssignments[task.id];
 
-                console.log(assignment);
-                return taskMaster ? (
-                  <Card key={tmUid}>
+                return (
+                  <Card key={task.id}>
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base">{taskMaster.taskName}</CardTitle>
-                      {taskMaster.taskDescription && (
-                        <CardDescription>{taskMaster.taskDescription}</CardDescription>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {task.name}
+                        {task.type === 'free' && (
+                          <Badge variant="outline" className="text-xs">フリー</Badge>
+                        )}
+                      </CardTitle>
+                      {task.description && (
+                        <CardDescription>{task.description}</CardDescription>
                       )}
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -375,7 +575,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                           <Label>担当者</Label>
                           <Select
                             value={assignment?.assigneeUid || ''}
-                            onValueChange={(value) => handleAssignmentChange(tmUid, 'assigneeUid', value)}
+                            onValueChange={(value) => handleAssignmentChange(task.id, 'assigneeUid', value)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="担当者を選択..." />
@@ -395,7 +595,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
 
                         <div className="space-y-2">
                           <Label>期日</Label>
-                          <Dialog open={calendarOpenMap[tmUid] || false} onOpenChange={(open) => setCalendarOpen(tmUid, open)}>
+                          <Dialog open={calendarOpenMap[task.id] || false} onOpenChange={(open) => setCalendarOpen(task.id, open)}>
                             <DialogTrigger asChild>
                               <Button variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -406,15 +606,15 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                             </DialogTrigger>
                             <DialogContent className="w-auto p-6">
                               <DialogTitle>期日設定</DialogTitle>
-                              <DialogDescription>{`「${taskMaster.taskName}」の期日を設定`}</DialogDescription>
+                              <DialogDescription>{`「${task.name}」の期日を設定`}</DialogDescription>
                               <Calendar
                                 mode="single"
                                 captionLayout="dropdown"
-                                selected={assignment?.dueDate ?? undefined}
+                                selected={dayjs(assignment?.dueDate).toDate() ?? undefined}
                                 onSelect={(date) => {
                                   if (date) {
-                                    handleAssignmentChange(tmUid, 'dueDate', date);
-                                    setCalendarOpen(tmUid, false);
+                                    handleAssignmentChange(task.id, 'dueDate', dayjs(date).format('YYYY/MM/DD'));
+                                    setCalendarOpen(task.id, false);
                                   }
                                 }}
                                 initialFocus
@@ -426,7 +626,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                       </div>
                     </CardContent>
                   </Card>
-                ) : null;
+                )
               })}
             </div>
           </div>
@@ -494,7 +694,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         <Separator className="my-6" />
 
         {/* ステップコンテンツ */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 pb-6">
           {renderStepContent()}
         </div>
 

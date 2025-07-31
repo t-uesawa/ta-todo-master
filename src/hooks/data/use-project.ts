@@ -29,6 +29,7 @@ export const useProject = () => {
 				query(
 					collection(db, COLLECTION_NAMES.PROJECTS),
 					where('isCompleted', '==', false),
+					where('deletedAt', '==', ''),
 					orderBy('updatedAt', 'asc')
 				)
 			);
@@ -42,14 +43,15 @@ export const useProject = () => {
 				};
 
 				projects.push(project);
-				tasks.push(...project.tasks);
+				tasks.push(...project.tasks.filter(task => !task.deletedAt));
 			});
 
-			toast(`${projects.length}件取得しました`);
+			toast(`【Project】${projects.length}件取得しました`);
 
 			dispatch({ type: 'SET_PROJECTS', payload: projects });
 			dispatch({ type: 'SET_TASKS', payload: tasks });
 		} catch (err) {
+			console.error(err);
 			const errMsg = err instanceof Error ? err.message : 'プロジェクトの取得中にエラーが発生しました。';
 			dispatch({ type: 'SET_ERROR', payload: errMsg });
 		} finally {
@@ -59,124 +61,74 @@ export const useProject = () => {
 
 	// プロジェクトの追加(タスク配列の追加)
 	const addProject = useCallback(async (
-		newProject: Omit<Project, 'tasks' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>,
-		newTasks: Omit<Task, 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>[]
+		newProject: Omit<Project, 'tasks'>,
+		newTasks: Task[]
 	) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-			const userUid = userData.user?.uid || '';
-
-			const newTasksData: Task[] =
-				newTasks.map(task => ({
-					...task,
-					createdAt: now,
-					createdBy: userUid,
-					updatedAt: now,
-					updatedBy: userUid,
-				}));
-
 			// プロジェクト作成
 			const newProjectData = {
 				...newProject,
-				tasks: newTasksData,
-				createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-				createdBy: userData.user?.uid || '',
-				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-				updatedBy: userData.user?.uid || '',
+				tasks: newTasks,
 			}
+
 			const ref = doc(db, COLLECTION_NAMES.PROJECTS, newProject.uid);
 			await setDoc(ref, newProjectData);
 
 			dispatch({ type: 'ADD_PROJECT', payload: newProjectData });
+			dispatch({ type: 'SET_TASKS', payload: newTasks });
 		} catch (err) {
+			console.error(err);
 			const errMsg = err instanceof Error ? err.message : 'プロジェクトの作成中にエラーが発生しました。';
 			dispatch({ type: 'SET_ERROR', payload: errMsg });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
-	}, [userData, dispatch]);
+	}, [dispatch]);
 
 	// プロジェクトの更新(タスク配列の更新)
-	const updateProject = useCallback(async (
-		updateProj: Project,
-		updateTasks: Omit<Task, 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>[]
-	) => {
+	const updateProject = useCallback(async (updateProj: Project) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-			const userUid = userData.user?.uid || '';
-
-			const newTasksData: Task[] =
-				updateTasks.map(task => ({
-					...task,
-					createdAt: now,
-					createdBy: userUid,
-					updatedAt: now,
-					updatedBy: userUid,
-				}));
-
 			// 更新対象プロジェクトの取得
 			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, updateProj.uid);
-			const newProjectData = {
-				...updateProj,
-				tasks: newTasksData,
-				updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-				updatedBy: userData.user?.uid || '',
-			};
 
-			await updateDoc(projectRef, newProjectData);
+			await updateDoc(projectRef, { ...updateProj });
 
-			dispatch({ type: 'UPDATE_PROJECT', payload: newProjectData });
+			dispatch({ type: 'UPDATE_PROJECT', payload: updateProj });
+			dispatch({ type: 'SET_TASKS', payload: updateProj.tasks });
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : 'プロジェクトの更新中にエラーが発生しました。';
 			dispatch({ type: 'SET_ERROR', payload: errMsg });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
-	}, [userData, dispatch]);
+	}, [dispatch]);
 
 	// プロジェクトの削除(関連するタスクも全て削除)
-	const deleteProject = useCallback(async (uid: string) => {
+	const deleteProject = useCallback(async (deleteProj: Project) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			// トランザクションで削除するプロジェクトに紐づくタスクも削除
-			const batch = writeBatch(db);
+			// 削除対象プロジェクトの取得
+			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, deleteProj.uid);
 
-			// プロジェクトの削除
-			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, uid);
-			batch.delete(projectRef);
+			await updateDoc(projectRef, { ...deleteProj });
 
-			// 関連タスクの削除
-			let newTasks = appData.tasks;
-
-			const tasksQuery = query(
-				collection(db, COLLECTION_NAMES.TASKS),
-				where('projectUid', '==', uid)
-			);
-			const taskSnapshot = await getDocs(tasksQuery);
-			taskSnapshot.forEach(doc => {
-				batch.delete(doc.ref);
-				newTasks = newTasks.filter(t => t.uid !== doc.id);
-			});
-
-			await batch.commit();
-
-			dispatch({ type: 'DELETE_PROJECT', payload: uid });
-			dispatch({ type: 'SET_TASKS', payload: newTasks });
+			dispatch({ type: 'DELETE_PROJECT', payload: deleteProj.uid });
+			dispatch({ type: 'DELETE_TASKS', payload: deleteProj.tasks.map(task => task.uid) });
 		} catch (err) {
 			const error = err instanceof Error ? err.message : 'プロジェクトの削除中にエラーが発生しました';
 			dispatch({ type: 'SET_ERROR', payload: error });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
-	}, [appData.tasks, dispatch]);
+	}, [dispatch]);
 
 	// タスクの追加
 	const addTasks = useCallback(async (

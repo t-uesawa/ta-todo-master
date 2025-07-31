@@ -17,19 +17,21 @@ import {
   Plus,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  CircleCheck
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ProjectCreationDrawer } from './drawer/ProjectCreationDrawer';
-import { Project } from '../../../types';
+import { Project, Task } from '../../../types';
 import { useResponsive } from '@/hooks/useResponsive';
 import { cn } from '@/lib/utils';
 import { ProjectDetailDrawer } from './drawer/ProjectDetailDrawer';
 import { useProject } from '@/hooks/data/use-project';
 import { mockConstructions } from '@/data/mockData';
+import dayjs from 'dayjs';
 
 export function ProjectList() {
-  const { projects, tasks, deleteProject } = useProject();
+  const { projects, tasks, updateProject, deleteProject } = useProject();
   const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
   const [creationDrawerOpen, setCreationDrawerOpen] = useState(false);
@@ -37,7 +39,9 @@ export function ProjectList() {
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ uid: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [completeTarget, setCompleteTarget] = useState<Project | null>(null);
 
   const getConstruction = (constructionUid: string) => {
     return mockConstructions.find(c => c.id === constructionUid);
@@ -67,6 +71,29 @@ export function ProjectList() {
     }
   };
 
+  const handleComplete = (project: Project) => {
+    setCompleteTarget(project);
+    setCompleteConfirmOpen(true);
+  }
+
+  const confirmComplete = async () => {
+    if (!completeTarget) return;
+
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+    const userUid = authState.user?.uid || '';
+
+    const completeProjectData: Project = {
+      ...completeTarget,
+      isCompleted: true,
+      updatedBy: userUid,
+      updatedAt: now,
+    };
+
+    await updateProject(completeProjectData);
+    setCompleteConfirmOpen(false);
+    setCompleteTarget(null);
+  };
+
   const handleEdit = (project: Project) => {
     setEditingProject(project);
     setCreationDrawerOpen(true);
@@ -78,15 +105,38 @@ export function ProjectList() {
   }
 
   const handleDelete = (project: Project) => {
-    setDeleteTarget({ uid: project.uid, name: project.projectName });
+    setDeleteTarget(project);
     setDeleteConfirmOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
 
-    deleteProject(deleteTarget.uid);
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
+    const userUid = authState.user?.uid || '';
 
+    const deletedTasks: Task[] = [];
+
+    deleteTarget.tasks.forEach(task => (
+      deletedTasks.push({
+        ...task,
+        updatedBy: userUid,
+        updatedAt: now,
+        deletedBy: userUid,
+        deletedAt: now,
+      })
+    ));
+
+    const deleteProjectData: Project = {
+      ...deleteTarget,
+      tasks: deletedTasks,
+      updatedBy: userUid,
+      updatedAt: now,
+      deletedBy: userUid,
+      deletedAt: now,
+    };
+
+    await deleteProject(deleteProjectData);
     setDeleteConfirmOpen(false);
     setDeleteTarget(null);
   };
@@ -102,8 +152,8 @@ export function ProjectList() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between flex-shrink-0 h-12">
+    <div className="h-full flex flex-col p-2">
+      <div className="flex items-center justify-between flex-shrink-0 h-12 my-2">
         <h2 className={cn("font-bold", isMobile ? "text-xl px-2" : "text-2xl")}>プロジェクト</h2>
         <Button onClick={() => setCreationDrawerOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -129,15 +179,24 @@ export function ProjectList() {
                         <FolderOpen className="h-5 w-5 text-blue-600" />
                         {getProjectTypeBadge(project.projectType)}
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-0.5">
+                        {project.tasks.every(task => task.status === 'completed') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleComplete(project)}
+                          >
+                            <CircleCheck className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => handleSelect(project)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(project)}>
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 text-blue-600" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(project)}>
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
                     </div>
@@ -210,13 +269,31 @@ export function ProjectList() {
             />
           )}
 
+          {/* プロジェクトコンプリート確認ダイアログ */}
+          <AlertDialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>プロジェクトコンプリート</AlertDialogTitle>
+                <AlertDialogDescription>
+                  プロジェクト「{completeTarget?.projectName}」を完了にしますか？
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>キャンセル</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmComplete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  完了
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* 削除確認ダイアログ */}
           <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>プロジェクト削除の確認</AlertDialogTitle>
                 <AlertDialogDescription>
-                  「{deleteTarget?.name}」とそれに関連するすべてのタスクを削除しますか？この操作は取り消せません。
+                  「{deleteTarget?.projectName}」とそれに関連するすべてのタスクを削除しますか？この操作は取り消せません。
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

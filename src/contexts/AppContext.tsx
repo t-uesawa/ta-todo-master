@@ -23,7 +23,7 @@ type AppAction =
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'UPDATE_TASK'; payload: Task }
-  | { type: 'DELETE_TASK'; payload: string }
+  | { type: 'DELETE_TASKS'; payload: string[] }
   | { type: 'SET_PHASE_GROUPS'; payload: PhaseGroup[] }
   | { type: 'ADD_PHASE_GROUP'; payload: PhaseGroup }
   | { type: 'UPDATE_PHASE_GROUP'; payload: PhaseGroup }
@@ -96,10 +96,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
           t.uid === action.payload.uid ? action.payload : t
         )
       };
-    case 'DELETE_TASK':
+    case 'DELETE_TASKS':
       return {
         ...state,
-        tasks: state.tasks.filter(t => t.uid !== action.payload)
+        tasks: state.tasks.filter(t => !action.payload.includes(t.uid))
       };
     case 'SET_PHASE_GROUPS':
       return { ...state, phaseGroups: action.payload };

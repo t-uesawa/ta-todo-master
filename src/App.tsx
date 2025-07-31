@@ -42,30 +42,14 @@ function AppContent() {
     return <LoginForm />;
   }
 
-  if (projectError) {
-    toast.error(projectError);
-  }
-
-  if (masterError) {
-    toast.error(masterError);
-  }
-
-  if (projectLoading || masterLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
-      case 'tasks':
-        return <TaskList />;
       case 'projects':
         return <ProjectList />;
+      case 'tasks':
+        return <TaskList />;
       case 'masters':
         return <MasterManagement />;
       case 'test':
@@ -74,6 +58,22 @@ function AppContent() {
         return <Dashboard />;
     }
   };
+
+  if (projectLoading || masterLoading) {
+    if (projectError) {
+      toast.error(projectError);
+    }
+
+    if (masterError) {
+      toast.error(masterError);
+    }
+
+    return (
+      <div className="flex items-center justify-center w-full min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full h-screen bg-gray-50">
@@ -84,7 +84,7 @@ function AppContent() {
           currentPage={currentPage}
           onPageChange={handlePageChange}
         />
-        <main className="flex-1 min-w-0 overflow-hidden md:p-6">
+        <main className="flex-1 min-w-0 overflow-hidden">
           {renderCurrentPage()}
         </main>
       </div>

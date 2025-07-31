@@ -22,10 +22,9 @@ interface SidebarProps {
 
 const navigationItems = [
   { id: 'dashboard', label: 'ダッシュボード', icon: Home },
-  { id: 'tasks', label: 'タスク', icon: CheckSquare },
   { id: 'projects', label: 'プロジェクト', icon: FolderPlus },
+  { id: 'tasks', label: 'タスク', icon: CheckSquare },
   { id: 'masters', label: 'マスタ', icon: Settings },
-  { id: 'test', label: 'テスト', icon: Settings },
 ];
 
 export function AppSidebar({ currentPage, onPageChange }: SidebarProps) {

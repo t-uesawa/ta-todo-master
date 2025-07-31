@@ -36,20 +36,24 @@ export interface Project {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  deletedBy: string;
+  deletedAt: string;
 }
 
 export interface Task {
   uid: string;  // {project.uid}(20桁)-{uuid}(20桁)
   projectUid: string;
-  taskMasterUid?: string;
-  taskName?: string;
+  taskMasterUid: string;
+  taskName: string;
   status: 'not_started' | 'in_progress' | 'completed';
   assigneeUid: string;
-  dueDate: Date;
+  dueDate: string;
   createdBy: string;
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  deletedBy: string;
+  deletedAt: string;
 }
 
 export interface PhaseGroup {
@@ -60,6 +64,8 @@ export interface PhaseGroup {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  deletedBy: string;
+  deletedAt: string;
 }
 
 export interface Phase {
@@ -70,6 +76,8 @@ export interface Phase {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  deletedBy: string;
+  deletedAt: string;
 }
 
 export interface TaskMaster {
@@ -84,6 +92,8 @@ export interface TaskMaster {
   createdAt: string;
   updatedBy: string;
   updatedAt: string;
+  deletedBy: string;
+  deletedAt: string;
 }
 
 export interface TaskFilter {
