@@ -59,15 +59,6 @@ export const useMaster = () => {
 		}
 	}
 
-	// const fetchedRef = useRef(false);
-
-	// useEffect(() => {
-	// 	if (!userData.user || fetchedRef.current) return;
-
-	// 	fetchedRef.current = true; // ✅ もう取得しない
-	// 	fecthAllMasters();
-	// }, [userData.user]);
-
 	// グループマスタの追加
 	const addPhaseGroup = useCallback(async (data: Omit<PhaseGroup, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>) => {
 		dispatch({ type: 'SET_LOADING', payload: true });

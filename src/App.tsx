@@ -17,7 +17,6 @@ import { useMaster } from './hooks/data/use-master';
 import { toast } from 'sonner';
 
 function AppContent() {
-  console.log('App.tsx レンダリング');
   const { loading: projectLoading, error: projectError, fetchProjects } = useProject();
   const { loading: masterLoading, error: masterError, fetchAllMasters } = useMaster();
   const { state } = useAuth();
