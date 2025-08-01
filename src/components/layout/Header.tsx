@@ -26,7 +26,7 @@ export function Header({ isMobile }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center justify-between h-14">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-2">
           {isMobile && (
             <SidebarTrigger />
           )}

@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 interface SidebarProps {
@@ -28,8 +29,17 @@ const navigationItems = [
 ];
 
 export function AppSidebar({ currentPage, onPageChange }: SidebarProps) {
+  const {
+    isMobile,
+    toggleSidebar,
+  } = useSidebar();
+
+  console.log(isMobile);
+
   return (
-    <Sidebar className='fixed left-0 top-0 z-50 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none md:border-r md:border-gray-200'>
+    <Sidebar
+      className='fixed left-0 top-0 z-50 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none md:border-r md:border-gray-200'
+    >
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>
@@ -42,6 +52,9 @@ export function AppSidebar({ currentPage, onPageChange }: SidebarProps) {
                     <SidebarMenuButton
                       onClick={() => {
                         onPageChange(item.id);
+                        if (isMobile) {
+                          toggleSidebar();
+                        }
                       }}
                       isActive={currentPage === item.id}
                     >
