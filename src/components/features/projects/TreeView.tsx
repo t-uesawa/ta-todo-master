@@ -7,14 +7,14 @@ import { useApp } from '@/contexts/AppContext';
 import { RichTreeView, TreeItemCheckbox, TreeItemContent, TreeItemDragAndDropOverlay, TreeItemGroupTransition, TreeItemIcon, TreeItemIconContainer, TreeItemProvider, TreeItemRoot, TreeViewBaseItem, useTreeItem, useTreeItemModel, UseTreeItemParameters } from '@mui/x-tree-view';
 import { Folder, FolderOpen, FileText, FileQuestion, FileSearch } from 'lucide-react';
 import IconButton from '@mui/material/IconButton';
-import { IconButtonType, MasterType, TreeNode } from '@/types';
+import { MasterType, TreeNode } from '@/types';
 import { Input } from '@/components/ui/input';
 
 interface TaskMasterTreeViewProps {
   type: 'management' | 'preview';
   selectedTaskMasters: string[];
   onSelectionChange: (taskMasterUids: string[]) => void;
-  onIconButtonClick: (masterUid: string, type: IconButtonType) => void;
+  onIconButtonClick: (masterUid: string) => void;
 }
 
 interface TreeItemData extends TreeViewBaseItem {
@@ -28,7 +28,7 @@ interface TreeItemData extends TreeViewBaseItem {
 interface CustomTreeItemProps
   extends Omit<UseTreeItemParameters, 'rootRef'>,
   Omit<React.HTMLAttributes<HTMLLIElement>, 'onFocus'> {
-  onIconButtonClick: (itemId: string, type: IconButtonType) => void;
+  onIconButtonClick: (itemId: string) => void;
 }
 
 const EXPANDED_ITEMS_KEY = 'tree_expanded_items';
@@ -100,20 +100,6 @@ const CustomTreeItem = React.forwardRef(
       }
     };
 
-    // タイプに応じた詳細ボタンの取得
-    const getFileSearchIcon = (type: MasterType) => {
-      switch (type) {
-        case 'root':
-        case 'task':
-          return <div></div>;
-        case 'group':
-        case 'phase':
-          return <FileSearch className="h-4 w-4 text-gray-600" />;
-        default:
-          return;
-      }
-    };
-
     // 子にtaskMaster要素を持っていればtureを返す関数
     function containsTaskMaster(nodes: TreeNode[]): boolean {
       const hasTaskMaster = (node: TreeNode): boolean => {
@@ -139,16 +125,16 @@ const CustomTreeItem = React.forwardRef(
             <div className="flex justify-between items-center w-full gap-2">
               <div className='flex items-center gap-2'>
                 {((item.children && containsTaskMaster(item.children)) || item.type === 'task') &&
-                  <TreeItemCheckbox {...getCheckboxProps()} />
+                  <TreeItemCheckbox size='small' {...getCheckboxProps()} />
                 }
                 {getStartIcon(item.type, status.expandable && status.expanded)}
                 <div>
                   <div>
-                    <div {...getLabelProps()}>
+                    <div className='text-sm' {...getLabelProps()}>
                       <HighlightText text={item.label} searchText={searchText} />
                     </div>
                     {item.description && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 truncate max-w-[160px]">
                         <HighlightText text={item.description} searchText={searchText} />
                       </div>
                     )}
@@ -160,10 +146,10 @@ const CustomTreeItem = React.forwardRef(
                   size="small"
                   onClick={(event) => {
                     event?.stopPropagation();
-                    onIconButtonClick(itemId, 'detail');
+                    onIconButtonClick(itemId);
                   }}
                 >
-                  {getFileSearchIcon(item.type)}
+                  {item.type === 'task' && <FileSearch className="h-4 w-4 text-gray-600" />}
                 </IconButton>
               </div>
             </div>

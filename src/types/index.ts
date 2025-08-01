@@ -31,6 +31,7 @@ export interface Project {
   projectName: string;
   tasks: Task[];
   projectType: 'construction' | 'general';
+  memo: string;
   isCompleted: boolean;
   createdBy: string;
   createdAt: string;
@@ -48,6 +49,7 @@ export interface Task {
   status: 'not_started' | 'in_progress' | 'completed';
   assigneeUid: string;
   dueDate: string;
+  memo: string,
   createdBy: string;
   createdAt: string;
   updatedBy: string;
@@ -86,8 +88,8 @@ export interface TaskMaster {
   taskName: string;
   taskDescription?: string;
   memo?: string;
-  primaryAssignee?: string;
-  attachments?: string[];
+  primaryAssignee?: string; // 主要担当者
+  attachments?: string[]; // 添付ファイル
   createdBy: string;
   createdAt: string;
   updatedBy: string;

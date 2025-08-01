@@ -8,8 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,18 +21,20 @@ import {
   XIcon
 } from 'lucide-react';
 import { TaskMasterTreeView } from '../TreeView';
-import { Project, Task } from '../../../../types';
+import { Project, Task, TaskMaster } from '../../../../types';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/hooks/data/use-project';
 import { useMaster } from '@/hooks/data/use-master';
 import { generateUid } from '@/lib/generateUid';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ProjectCreationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   editingProject?: Project | null;
+  onDetailTaskMasterOpen: (tm: TaskMaster) => void;
 }
 
 interface FreeTask {
@@ -50,7 +50,8 @@ interface ProjectFormData {
   kojiUid?: string;
   selectedTaskMasters: string[];  // タスクマスタUID
   freeTasks: FreeTask[];  // フリータスク
-  taskAssignments: Record<string, { assigneeUid: string; dueDate: string }>;
+  taskAssignments: Record<string, { assigneeUid: string; dueDate: string, memo: string }>;
+  memo: string;
 }
 
 const steps = [
@@ -59,7 +60,7 @@ const steps = [
   { id: 3, title: 'タスク設定', description: '担当者と期日を設定' }
 ];
 
-export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: ProjectCreationDrawerProps) {
+export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetailTaskMasterOpen }: ProjectCreationDrawerProps) {
   const { error, addProject, updateProject } = useProject();
   const { constructions, taskMasters } = useMaster();
   const { state: authState } = useAuth();
@@ -74,7 +75,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
     kojiUid: '',
     selectedTaskMasters: [],
     freeTasks: [],
-    taskAssignments: {}
+    taskAssignments: {},
+    memo: '',
   });
   const [calendarOpenMap, setCalendarOpenMap] = useState<Record<string, boolean>>({});
 
@@ -91,7 +93,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       kojiUid: undefined,
       selectedTaskMasters: [],
       freeTasks: [],
-      taskAssignments: {}
+      taskAssignments: {},
+      memo: '',
     });
   };
 
@@ -130,8 +133,9 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       taskAssignments: {
         ...prev.taskAssignments,
         [newFreeTask.id]: {
-          assigneeUid: authState.user?.uid || '',
+          assigneeUid: '',
           dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
+          memo: '',
         }
       }
     }));
@@ -157,12 +161,14 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       ...prev,
       selectedTaskMasters: taskMasterUids,
       taskAssignments: taskMasterUids.reduce((acc, uid) => {
+        const taskMaster = taskMasters.find(tm => tm.uid === uid);
         acc[uid] = prev.taskAssignments[uid] || {
-          assigneeUid: authState.user?.uid || '',
+          assigneeUid: taskMaster?.primaryAssignee || '',
           dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
+          memo: '',
         };
         return acc;
-      }, {} as Record<string, { assigneeUid: string; dueDate: string }>)
+      }, {} as Record<string, { assigneeUid: string; dueDate: string, memo: string }>)
     }));
   };
 
@@ -175,7 +181,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
     });
   };
 
-  const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate', value: string) => {
+  const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate' | 'memo', value: string) => {
     setFormData(prev => ({
       ...prev,
       taskAssignments: {
@@ -203,12 +209,14 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         if (updateTask) {
           newTasks.push(
             updateTask.assigneeUid !== formData.taskAssignments[tm].assigneeUid ||
-              updateTask.dueDate !== formData.taskAssignments[tm].dueDate ?
+              updateTask.dueDate !== formData.taskAssignments[tm].dueDate ||
+              updateTask.memo !== formData.taskAssignments[tm].memo ?
               {
                 ...updateTask,
                 taskMasterUid: tm,
                 assigneeUid: formData.taskAssignments[tm].assigneeUid,
                 dueDate: formData.taskAssignments[tm].dueDate,
+                memo: formData.taskAssignments[tm].memo,
                 updatedBy: userUid,
                 updatedAt: now,
               } : updateTask
@@ -224,6 +232,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
             status: 'not_started' as const,
             assigneeUid: formData.taskAssignments[tm].assigneeUid,
             dueDate: formData.taskAssignments[tm].dueDate,
+            memo: formData.taskAssignments[tm].memo,
             createdBy: userUid,
             createdAt: now,
             updatedBy: userUid,
@@ -241,12 +250,14 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
           newTasks.push(
             existingTask.taskName !== freeTask.name ||
               existingTask.assigneeUid !== formData.taskAssignments[freeTask.id].assigneeUid ||
-              existingTask.dueDate !== formData.taskAssignments[freeTask.id].dueDate ?
+              existingTask.dueDate !== formData.taskAssignments[freeTask.id].dueDate ||
+              existingTask.memo !== formData.taskAssignments[freeTask.id].memo ?
               {
                 ...existingTask,
                 taskName: freeTask.name,
                 assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
                 dueDate: formData.taskAssignments[freeTask.id].dueDate,
+                memo: formData.taskAssignments[freeTask.id].memo,
                 updatedBy: userUid,
                 updatedAt: now,
               } : existingTask);
@@ -259,6 +270,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
             status: 'not_started' as const,
             assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
             dueDate: formData.taskAssignments[freeTask.id].dueDate,
+            memo: formData.taskAssignments[freeTask.id].memo,
             createdBy: userUid,
             createdAt: now,
             updatedBy: userUid,
@@ -275,6 +287,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         tasks: newTasks,
         projectName: formData.projectName,
         projectType: formData.projectType,
+        memo: formData.memo,
       }
 
       await updateProject(newProject);
@@ -288,6 +301,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         ...(formData.kojiUid !== undefined && { kojiUid: formData.kojiUid }),
         projectName: formData.projectName,
         projectType: formData.projectType,
+        memo: formData.memo,
         isCompleted: false,
         createdBy: userUid,
         createdAt: now,
@@ -306,6 +320,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
           status: 'not_started' as const,
           assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
           dueDate: formData.taskAssignments[tmUid].dueDate,
+          memo: formData.taskAssignments[tmUid].memo,
           createdBy: userUid,
           createdAt: now,
           updatedBy: userUid,
@@ -321,6 +336,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
           status: 'not_started' as const,
           assigneeUid: formData.taskAssignments[freeTask.id].assigneeUid,
           dueDate: formData.taskAssignments[freeTask.id].dueDate,
+          memo: formData.taskAssignments[freeTask.id].memo,
           createdBy: userUid,
           createdAt: now,
           updatedBy: userUid,
@@ -337,7 +353,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       return;
     }
 
-    // handleClose();
+    handleClose();
   };
 
   useEffect(() => {
@@ -351,11 +367,12 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
       projectName: editingProject.projectName || '',
       projectType: editingProject.projectType || 'construction',
       kojiUid: editingProject.kojiUid,
+      memo: editingProject.memo,
       selectedTaskMasters: masterTasks.map(task => task.taskMasterUid!),
       freeTasks: freeTasks.map(task => ({
         id: task.uid,
         name: task.taskName,
-        description: undefined, // 必要に応じて追加
+        description: task.memo, // 必要に応じて追加
         type: 'free' as const
       })),
       taskAssignments: editingProject.tasks.reduce((acc, task) => {
@@ -364,10 +381,11 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
           acc[key] = {
             assigneeUid: task.assigneeUid,
             dueDate: task.dueDate,
+            memo: task.memo,
           };
         }
         return acc;
-      }, {} as Record<string, { assigneeUid: string; dueDate: string }>)
+      }, {} as Record<string, { assigneeUid: string; dueDate: string, memo: string }>)
     });
   }, [editingProject]);
 
@@ -433,6 +451,19 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="projectName">メモ</Label>
+              <Textarea
+                id="projectName"
+                value={formData.memo}
+                onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                lang='ja'
+                placeholder="プロジェクトのメモを入力..."
+                rows={4}
+                autoComplete='off'
+              />
+            </div>
+
             {formData.kojiUid && (
               <Card>
                 <CardHeader>
@@ -459,7 +490,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                           <p className='w-4/5'>{dayjs(koji.start).format('YYYY/MM/DD')} ～ {dayjs(koji.end).format('YYYY/MM/DD')}</p>
                         </div>
                         <div className='w-full flex'>
-                          <p className='w-1/5'>契約金額:</p>
+                          <p className='w-1/5'>金額:</p>
                           <p className='w-4/5'>{koji.contractAmount ? `${parseInt(koji.contractAmount).toLocaleString()}円` : '不明'}</p>
                         </div>
                       </div>
@@ -483,7 +514,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
               type='preview'
               selectedTaskMasters={formData.selectedTaskMasters}
               onSelectionChange={handleTaskMasterSelect}
-              onIconButtonClick={() => { }}
+              onIconButtonClick={(tmUid) => onDetailTaskMasterOpen(taskMasters.find(tm => tm.uid === tmUid)!)}
             />
 
             {/* フリータスク追加セクション */}
@@ -509,7 +540,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                   disabled={!newTaskName.trim()}
                   className="w-full"
                 >
-                  フリータスク追加
+                  一般タスク追加
                 </Button>
               </div>
             </div>
@@ -550,7 +581,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
               <Users className="h-5 w-5" />
-              <h3 className="text-lg font-semibold">タスク設定</h3>
+              <h3 className="text-lg font-semibold">タスク詳細設定</h3>
             </div>
             <div className="space-y-4">
               {getAllTasks().map(task => {
@@ -561,16 +592,18 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
                         {task.name}
-                        {task.type === 'free' && (
-                          <Badge variant="outline" className="text-xs">フリー</Badge>
+                        {task.type === 'free' ? (
+                          <Badge variant="outline" className="text-xs">一般</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">マスタ</Badge>
                         )}
                       </CardTitle>
                       {task.description && (
                         <CardDescription>{task.description}</CardDescription>
                       )}
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CardContent className="space-y-2">
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>担当者</Label>
                           <Select
@@ -583,10 +616,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                             <SelectContent>
                               {authState.users.map(user => (
                                 <SelectItem key={user.uid} value={user.uid}>
-                                  <div className="flex flex-col text-left">
-                                    <span className="font-medium">{user.name}</span>
-                                    <span className="text-xs text-gray-500">{user.department}</span>
-                                  </div>
+                                  <span className="font-medium">{user.name}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -600,13 +630,13 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                               <Button variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {assignment?.dueDate
-                                  ? format(assignment.dueDate, 'yyyy/MM/dd', { locale: ja })
+                                  ? dayjs(assignment.dueDate).format('YYYY/MM/DD')
                                   : '期日を選択...'}
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="w-auto p-6">
                               <DialogTitle>期日設定</DialogTitle>
-                              <DialogDescription>{`「${task.name}」の期日を設定`}</DialogDescription>
+                              <DialogDescription>{`${task.name}の期日を設定`}</DialogDescription>
                               <Calendar
                                 mode="single"
                                 captionLayout="dropdown"
@@ -623,6 +653,18 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
                             </DialogContent>
                           </Dialog>
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>メモ</Label>
+                        <Textarea
+                          value={assignment?.memo || ''}
+                          onChange={(e) => handleAssignmentChange(task.id, 'memo', e.target.value)}
+                          lang='ja'
+                          placeholder="(任意) タスクのメモを入力..."
+                          rows={2}
+                          autoComplete='off'
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -643,12 +685,17 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject }: Proje
         return formData.projectName.trim() !== '' &&
           (formData.projectType === 'general' || formData.kojiUid);
       case 2:
-        return formData.selectedTaskMasters.length > 0;
+        return formData.freeTasks.length + formData.selectedTaskMasters.length > 0;
       case 3:
         return formData.selectedTaskMasters.every(tmUid => {
           const assignment = formData.taskAssignments[tmUid];
           return assignment && assignment.assigneeUid && assignment.dueDate;
-        });
+        })
+          &&
+          formData.freeTasks.every(task => {
+            const assignment = formData.taskAssignments[task.id];
+            return assignment && assignment.assigneeUid && assignment.dueDate;
+          });
       default:
         return false;
     }
