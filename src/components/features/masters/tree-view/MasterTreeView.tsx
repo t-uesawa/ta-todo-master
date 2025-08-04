@@ -13,7 +13,7 @@ interface MasterTreeViewProps {
 	getMasterDataWithType: (uid: string) => MasterDataResult;
 	onFormOpen: (type: 'phaseGroup' | 'phase' | 'taskMaster', uid: string) => void;
 	onEdit: (type: 'phaseGroup' | 'phase' | 'taskMaster', item: PhaseGroup | Phase | TaskMaster) => void;
-	onDelete: (type: 'phaseGroup' | 'phase' | 'taskMaster', uid: string, name: string) => void;
+	onDelete: (type: 'phaseGroup' | 'phase' | 'taskMaster', item: PhaseGroup | Phase | TaskMaster) => void;
 }
 
 export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDelete }: MasterTreeViewProps) {
@@ -50,11 +50,6 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 			return;
 		}
 
-		const name =
-			result.type === 'phaseGroup' ? result.data.groupName :
-				result.type === 'phase' ? result.data.phaseName :
-					result.type === 'taskMaster' ? result.data.taskName : '';
-
 		switch (type) {
 			case 'add':
 				// 上でphaseGroupは絞ってるし、taskMasterの追加はあり得ないからphaseしかない
@@ -64,7 +59,7 @@ export function MasterTreeView({ getMasterDataWithType, onFormOpen, onEdit, onDe
 			case 'detail':
 				return handleMasterSelect(masterUid);
 			case 'delete':
-				return onDelete(result.type, masterUid, name);
+				return onDelete(result.type, result.data);
 		}
 	}
 

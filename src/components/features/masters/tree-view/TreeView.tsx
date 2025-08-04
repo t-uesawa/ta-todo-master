@@ -180,8 +180,8 @@ export const TreeView = ({
 	const [expandedItems, setExpandedItems] = useState<string[]>(() => {
 		const saved = localStorage.getItem(EXPANDED_ITEMS_KEY);
 		try {
-			const parsed = JSON.parse(saved ?? '[]');
-			return Array.isArray(parsed) ? parsed : [];
+			const parsed = JSON.parse(saved ?? '["root"]');
+			return Array.isArray(parsed) ? parsed : ['root'];
 		} catch (e) {
 			console.warn('Failed to parse expandedItems from localStorage', e);
 			return [];

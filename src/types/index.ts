@@ -62,6 +62,7 @@ export interface PhaseGroup {
   uid: string;
   parentGroupUid?: string;
   groupName: string;
+  memo?: string;
   createdBy: string;
   createdAt: string;
   updatedBy: string;
@@ -74,6 +75,7 @@ export interface Phase {
   uid: string;
   parentGroupUid: string;
   phaseName: string;
+  memo?: string;
   createdBy: string;
   createdAt: string;
   updatedBy: string;
@@ -86,7 +88,7 @@ export interface TaskMaster {
   uid: string;
   phaseUid: string;
   taskName: string;
-  taskDescription?: string;
+  taskDescription: string;
   memo?: string;
   primaryAssignee?: string; // 主要担当者
   attachments?: string[]; // 添付ファイル

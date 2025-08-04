@@ -5,7 +5,6 @@ import { COLLECTION_NAMES, Project, Task } from "@/types";
 import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
 import { useCallback } from "react";
 import dayjs from 'dayjs';
-import { toast } from "sonner";
 
 /**
  * プロジェクトのカスタムフック
@@ -46,14 +45,13 @@ export const useProject = () => {
 				tasks.push(...project.tasks.filter(task => !task.deletedAt));
 			});
 
-			toast(`【Project】${projects.length}件取得しました`);
+			console.log(`get projects count: ${projects.length}`);
 
 			dispatch({ type: 'SET_PROJECTS', payload: projects });
 			dispatch({ type: 'SET_TASKS', payload: tasks });
 		} catch (err) {
 			console.error(err);
-			const errMsg = err instanceof Error ? err.message : 'プロジェクトの取得中にエラーが発生しました。';
-			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			dispatch({ type: 'SET_ERROR', payload: 'プロジェクトの取得中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
@@ -81,8 +79,7 @@ export const useProject = () => {
 			dispatch({ type: 'SET_TASKS', payload: newTasks });
 		} catch (err) {
 			console.error(err);
-			const errMsg = err instanceof Error ? err.message : 'プロジェクトの作成中にエラーが発生しました。';
-			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			dispatch({ type: 'SET_ERROR', payload: 'プロジェクトの作成中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
@@ -102,8 +99,8 @@ export const useProject = () => {
 			dispatch({ type: 'UPDATE_PROJECT', payload: updateProj });
 			dispatch({ type: 'SET_TASKS', payload: updateProj.tasks });
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : 'プロジェクトの更新中にエラーが発生しました。';
-			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			console.error(err);
+			dispatch({ type: 'SET_ERROR', payload: 'プロジェクトの更新中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
@@ -123,8 +120,8 @@ export const useProject = () => {
 			dispatch({ type: 'DELETE_PROJECT', payload: deleteProj.uid });
 			dispatch({ type: 'DELETE_TASKS', payload: deleteProj.tasks.map(task => task.uid) });
 		} catch (err) {
-			const error = err instanceof Error ? err.message : 'プロジェクトの削除中にエラーが発生しました';
-			dispatch({ type: 'SET_ERROR', payload: error });
+			console.error(err);
+			dispatch({ type: 'SET_ERROR', payload: 'プロジェクトの削除中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
@@ -158,8 +155,8 @@ export const useProject = () => {
 				dispatch({ type: 'ADD_TASK', payload: newTaskData });
 			});
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : 'タスクの作成中にエラーが発生しました。';
-			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			console.error(err);
+			dispatch({ type: 'SET_ERROR', payload: 'タスクの作成中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
@@ -216,8 +213,8 @@ export const useProject = () => {
 
 			dispatch({ type: 'SET_TASKS', payload: updateTasks });
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : 'タスクの更新中にエラーが発生しました。';
-			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			console.error(err);
+			dispatch({ type: 'SET_ERROR', payload: 'タスクの更新中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}

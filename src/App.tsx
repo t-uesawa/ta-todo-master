@@ -29,8 +29,13 @@ function AppContent() {
 
   useEffect(() => {
     const fetchData = async () => {
-      await fetchProjects();
-      await fetchAllMasters();
+      try {
+        await fetchProjects();
+        await fetchAllMasters();
+      } catch {
+        toast.error(projectError);
+        toast.error(masterError);
+      }
     }
     if (state.isAuthenticated) {
       fetchData();
@@ -59,14 +64,6 @@ function AppContent() {
   };
 
   if (projectLoading || masterLoading) {
-    if (projectError) {
-      toast.error(projectError);
-    }
-
-    if (masterError) {
-      toast.error(masterError);
-    }
-
     return (
       <div className="flex items-center justify-center w-full min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>

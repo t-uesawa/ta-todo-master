@@ -8,6 +8,7 @@ import { MasterTreeView } from './tree-view/MasterTreeView';
 import { cn } from '@/lib/utils';
 import { useResponsive } from '@/hooks/useResponsive';
 import { useMaster } from '@/hooks/data/use-master';
+import { toast } from 'sonner';
 
 export function MasterManagement() {
   const {
@@ -41,7 +42,7 @@ export function MasterManagement() {
 
   // 削除確認
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'phaseGroup' | 'phase' | 'taskMaster'; uid: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'phaseGroup' | 'phase' | 'taskMaster'; item: PhaseGroup | Phase | TaskMaster } | null>(null);
 
   // uidからtypeとdataを取得
   function getMasterDataWithType(uid: string): MasterDataResult {
@@ -79,28 +80,39 @@ export function MasterManagement() {
     }
   };
 
-  const handleDelete = (type: 'phaseGroup' | 'phase' | 'taskMaster', uid: string, name: string) => {
-    setDeleteTarget({ type, uid, name });
+  const handleDelete = (type: 'phaseGroup' | 'phase' | 'taskMaster', item: PhaseGroup | Phase | TaskMaster) => {
+    setDeleteTarget({ type, item });
     setDeleteConfirmOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
 
-    switch (deleteTarget.type) {
-      case 'phaseGroup':
-        deletePhaseGroup(deleteTarget.uid);
-        break;
-      case 'phase':
-        deletePhase(deleteTarget.uid);
-        break;
-      case 'taskMaster':
-        deleteTask(deleteTarget.uid);
-        break;
-    }
+    try {
+      switch (deleteTarget.type) {
+        case 'phaseGroup':
+          await deletePhaseGroup(deleteTarget.item as PhaseGroup);
+          break;
+        case 'phase':
+          await deletePhase(deleteTarget.item as Phase);
+          break;
+        case 'taskMaster':
+          await deleteTask(deleteTarget.item as TaskMaster);
+          break;
+      }
 
-    setDeleteConfirmOpen(false);
-    setDeleteTarget(null);
+      toast.success('成功!', {
+        description: '正常に削除が完了しました'
+      });
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : '削除に失敗しました';
+      toast.error('失敗!', {
+        description: errMsg,
+      });
+      return;
+    }
   };
 
   // 開くフォームのタイプと親のuidを渡す
@@ -173,7 +185,12 @@ export function MasterManagement() {
         ) : (
           <MasterTreeView getMasterDataWithType={getMasterDataWithType} onFormOpen={handleFormOpen} onEdit={handleEdit} onDelete={handleDelete} />
         )} */}
-        <MasterTreeView getMasterDataWithType={getMasterDataWithType} onFormOpen={handleFormOpen} onEdit={handleEdit} onDelete={handleDelete} />
+        <MasterTreeView
+          getMasterDataWithType={getMasterDataWithType}
+          onFormOpen={handleFormOpen}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       </div>
 
       {/* フォーム */}
@@ -202,14 +219,17 @@ export function MasterManagement() {
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>削除の確認</AlertDialogTitle>
+            <AlertDialogTitle>削除</AlertDialogTitle>
             <AlertDialogDescription>
-              「{deleteTarget?.name}」を削除しますか？この操作は取り消せません。
+              本当に削除しますか？この操作は取り消せません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               削除
             </AlertDialogAction>
           </AlertDialogFooter>
