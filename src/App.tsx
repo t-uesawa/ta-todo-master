@@ -80,7 +80,7 @@ function AppContent() {
           currentPage={currentPage}
           onPageChange={handlePageChange}
         />
-        <main className="flex-1 min-w-0 overflow-hidden">
+        <main className="flex-1 min-w-0  overflow-y-auto">
           {renderCurrentPage()}
         </main>
       </div>

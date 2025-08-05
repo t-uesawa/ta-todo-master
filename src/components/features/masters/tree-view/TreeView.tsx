@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from '@/contexts/AppContext';
 import { RichTreeView, TreeItemCheckbox, TreeItemContent, TreeItemDragAndDropOverlay, TreeItemGroupTransition, TreeItemIcon, TreeItemIconContainer, TreeItemProvider, TreeItemRoot, useTreeItem, useTreeItemModel, UseTreeItemParameters } from '@mui/x-tree-view';
-import { Folder, FolderOpen, FileText, FileQuestion, FileSearch, Plus } from 'lucide-react';
+import { Folder, FolderOpen, FileText, FileQuestion, Plus } from 'lucide-react';
 import IconButton from '@mui/material/IconButton';
 import { IconButtonType, MasterType, TreeNode } from '@/types';
 import { Button } from "@/components/ui/button";
+import ActionMenu from "./ActionMenu";
 
 interface TreeViewProps {
 	selectedMaster: string;	// 選択したマスタアイテム
@@ -92,20 +93,6 @@ const CustomTreeItem = React.forwardRef(
 			}
 		};
 
-		// タイプに応じた詳細ボタンの取得
-		const getFileSearchIcon = (type: MasterType) => {
-			switch (type) {
-				case 'root':
-				case 'task':
-					return <div></div>;
-				case 'group':
-				case 'phase':
-					return <FileSearch className="h-4 w-4 text-gray-600" />;
-				default:
-					return;
-			}
-		};
-
 		const getPlusIcon = (type: MasterType) => {
 			switch (type) {
 				case 'group':
@@ -139,15 +126,12 @@ const CustomTreeItem = React.forwardRef(
 								</div>
 							</div>
 							<div className='flex items-center gap-1'>
-								<IconButton
-									size="small"
-									onClick={(event) => {
-										event?.stopPropagation();
-										onIconButtonClick(itemId, 'detail');
-									}}
-								>
-									{getFileSearchIcon(item.type)}
-								</IconButton>
+								{(item.type === 'group' || item.type === 'phase') && (
+									<ActionMenu
+										onEditOrg={() => onIconButtonClick(itemId, 'edit')}
+										onDeleteOrg={() => onIconButtonClick(itemId, 'delete')}
+									/>
+								)}
 								<IconButton
 									size="small"
 									onClick={(event) => {

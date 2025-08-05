@@ -164,10 +164,7 @@ export function MasterManagement() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className={cn(
-        "flex items-center justify-between flex-shrink-0",
-        'h-12'
-      )}>
+      <div className="flex items-center justify-between flex-shrink-0 h-12 mx-2 mt-2">
         <h2 className={cn("font-bold", isMobile ? "text-xl px-2" : "text-2xl")}>マスタ管理</h2>
         {/* <ToggleGroup type="single" value={viewType} onValueChange={(v) => v && setViewType(v as 'card' | 'tree')}>
           <ToggleGroupItem value="card" aria-label="カード">

@@ -123,7 +123,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
     const newFreeTask: FreeTask = {
       id: `free-${generateUid()}`,
       name: newTaskName.trim(),
-      description: newTaskDescription.trim() || undefined,
+      description: newTaskDescription.trim() || '',
       type: 'free'
     };
 
@@ -162,11 +162,13 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
       selectedTaskMasters: taskMasterUids,
       taskAssignments: taskMasterUids.reduce((acc, uid) => {
         const taskMaster = taskMasters.find(tm => tm.uid === uid);
-        acc[uid] = prev.taskAssignments[uid] || {
-          assigneeUid: taskMaster?.primaryAssignee || '',
-          dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
-          memo: '',
-        };
+        if (taskMaster) {
+          acc[uid] = prev.taskAssignments[uid] || (taskMaster && {
+            assigneeUid: taskMaster.primaryAssignee || '',
+            dueDate: dayjs().add(1, 'w').format('YYYY/MM/DD'),
+            memo: '',
+          });
+        }
         return acc;
       }, {} as Record<string, { assigneeUid: string; dueDate: string, memo: string }>)
     }));
@@ -182,6 +184,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
   };
 
   const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate' | 'memo', value: string) => {
+    console.log(formData.taskAssignments);
+    console.log(taskMasterUid);
     setFormData(prev => ({
       ...prev,
       taskAssignments: {
@@ -288,6 +292,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
         projectName: formData.projectName,
         projectType: formData.projectType,
         memo: formData.memo,
+        updatedAt: now,
+        updatedBy: userUid
       }
 
       await updateProject(newProject);
@@ -311,23 +317,29 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
         deletedAt: '',
       };
 
+      // タスク
       const allTasksForCreation = [
-        ...formData.selectedTaskMasters.map(tmUid => ({
-          uid: `${projectUid}-${generateUid()}`,
-          projectUid,
-          taskMasterUid: tmUid,
-          taskName: '', // マスタから自動設定される
-          status: 'not_started' as const,
-          assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
-          dueDate: formData.taskAssignments[tmUid].dueDate,
-          memo: formData.taskAssignments[tmUid].memo,
-          createdBy: userUid,
-          createdAt: now,
-          updatedBy: userUid,
-          updatedAt: now,
-          deletedBy: '',
-          deletedAt: '',
-        } as Task)),
+        ...formData.selectedTaskMasters.map(tmUid => {
+          const taskMaster = taskMasters.find(tm => tm.uid === tmUid);
+          if (taskMaster) {
+            return taskMaster && {
+              uid: `${projectUid}-${generateUid()}`,
+              projectUid,
+              taskMasterUid: tmUid,
+              taskName: '', // マスタから自動設定される
+              status: 'not_started' as const,
+              assigneeUid: formData.taskAssignments[tmUid].assigneeUid,
+              dueDate: formData.taskAssignments[tmUid].dueDate,
+              memo: formData.taskAssignments[tmUid].memo,
+              createdBy: userUid,
+              createdAt: now,
+              updatedBy: userUid,
+              updatedAt: now,
+              deletedBy: '',
+              deletedAt: '',
+            } as Task
+          }
+        }).filter((task): task is Task => task !== undefined), // ← undefined を除外！,
         ...formData.freeTasks.map(freeTask => ({
           uid: freeTask.id,
           projectUid,
@@ -687,15 +699,19 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
       case 2:
         return formData.freeTasks.length + formData.selectedTaskMasters.length > 0;
       case 3:
-        return formData.selectedTaskMasters.every(tmUid => {
-          const assignment = formData.taskAssignments[tmUid];
-          return assignment && assignment.assigneeUid && assignment.dueDate;
-        })
-          &&
-          formData.freeTasks.every(task => {
-            const assignment = formData.taskAssignments[task.id];
-            return assignment && assignment.assigneeUid && assignment.dueDate;
-          });
+        return Object.entries(formData.taskAssignments).every(([key, data]) => {
+          return key.trim() && data.assigneeUid && data.dueDate;
+        });
+
+      // return formData.selectedTaskMasters.every(tmUid => {
+      //   const assignment = formData.taskAssignments[tmUid];
+      //   return assignment && assignment.assigneeUid && assignment.dueDate;
+      // })
+      //   &&
+      //   formData.freeTasks.every(task => {
+      //     const assignment = formData.taskAssignments[task.id];
+      //     return assignment && assignment.assigneeUid && assignment.dueDate;
+      //   });
       default:
         return false;
     }

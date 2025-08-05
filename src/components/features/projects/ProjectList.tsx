@@ -16,11 +16,6 @@ import {
   CircleCheck,
   FolderPlus,
   FolderPen,
-  Edit3,
-  Calendar,
-  User,
-  FileText,
-  Target
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ProjectCreationDrawer } from './drawer/ProjectCreationDrawer';
@@ -31,12 +26,10 @@ import { ProjectDetailDrawer } from './drawer/ProjectDetailDrawer';
 import { useProject } from '@/hooks/data/use-project';
 import { mockConstructions } from '@/data/mockData';
 import dayjs from 'dayjs';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useMaster } from '@/hooks/data/use-master';
+import { TaskMasterDetailDialog } from './drawer/TaskMasterDetailDialog';
 
 export function ProjectList() {
   const { projects, tasks, deleteProject } = useProject();
-  const { phases } = useMaster();
   const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
   const [creationDrawerOpen, setCreationDrawerOpen] = useState(false);
@@ -283,132 +276,14 @@ export function ProjectList() {
           )}
 
           {/** タスクマスタ詳細ダイアログ */}
-          <Dialog open={detailTaskMasterOpen} onOpenChange={handleDetailTaskMasterClose}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{detailTaskMasterTarget?.taskName || ''}</DialogTitle>
-                <DialogDescription>
-                  {detailTaskMasterTarget?.taskDescription || ''}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="p-6">
-                <div className="space-y-6">
-                  {/* フェーズ */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-muted-foreground" />
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        フェーズ
-                      </label>
-                    </div>
-                    <div className="rounded-md border bg-muted/50 px-3 py-2">
-                      <p className="text-sm">
-                        {phases.find(p => p.uid === detailTaskMasterTarget?.phaseUid)?.phaseName || ''}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/** 主な担当者 */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        主な担当者
-                      </label>
-                    </div>
-                    <div className="rounded-md border bg-muted/50 px-3 py-2">
-                      <p className="text-sm">
-                        {detailTaskMasterTarget?.primaryAssignee || 'なし'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 備考・留意点 */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        備考・留意点
-                      </label>
-                    </div>
-                    <div className="rounded-md border bg-muted/50 px-3 py-2">
-                      <p className="text-sm leading-relaxed">
-                        {detailTaskMasterTarget?.memo || 'なし'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 作成・更新 */}
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          作成者
-                        </label>
-                      </div>
-                      <div className="rounded-md border bg-muted/50 px-3 py-2">
-                        <p className="text-sm">
-                          {getUserName(detailTaskMasterTarget?.createdBy || '')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          作成日時
-                        </label>
-                      </div>
-                      <div className="rounded-md border bg-muted/50 px-3 py-2">
-                        <p className="text-sm font-mono">
-                          {detailTaskMasterTarget?.createdAt || 'なし'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 日時情報 */}
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Edit3 className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          更新者
-                        </label>
-                      </div>
-                      <div className="rounded-md border bg-muted/50 px-3 py-2">
-                        <p className="text-sm">
-                          {getUserName(detailTaskMasterTarget?.updatedAt || '')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          更新日時
-                        </label>
-                      </div>
-                      <div className="rounded-md border bg-muted/50 px-3 py-2">
-                        <p className="text-sm font-mono">
-                          {detailTaskMasterTarget?.updatedAt || 'なし'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button">
-                    閉じる
-                  </Button>
-                </DialogClose>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {detailTaskMasterTarget && (
+            <TaskMasterDetailDialog
+              open={detailTaskMasterOpen}
+              onClose={handleDetailTaskMasterClose}
+              target={detailTaskMasterTarget}
+              getUserName={getUserName}
+            />
+          )}
 
           {/* プロジェクトコンプリート確認ダイアログ */}
           <AlertDialog open={completeConfirmOpen} onOpenChange={setCompleteConfirmOpen}>
