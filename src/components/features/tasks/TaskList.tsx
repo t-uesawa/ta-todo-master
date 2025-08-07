@@ -5,13 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Filter, Search, CheckSquare, Building, User, Calendar, Edit, AlertCircle, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Filter, Search, CheckSquare, Building, User, Calendar, Edit, AlertCircle, ArrowUpDown, ChevronUp, ChevronDown, Timer } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Task, TaskFilter } from '../../../types';
+import { Project, Task, TaskFilter } from '../../../types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
+import dayjs from 'dayjs';
+import { toast } from 'sonner';
+import { useProject } from '@/hooks/data/use-project';
+import { TaskEditDialog } from './TaskEditDialog';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface SortConfig {
   key: keyof Task | null;
@@ -26,8 +29,14 @@ interface SortableHeaderProps {
 }
 
 export function TaskList() {
+  const { isMobile } = useResponsive();
   const { state: appState, dispatch } = useApp();
   const { state: authState } = useAuth();
+  const { updateTask } = useProject();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Task | null>(null);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [localFilter, setLocalFilter] = useState<TaskFilter>(appState.taskFilter);
 
@@ -35,6 +44,16 @@ export function TaskList() {
     key: null,
     direction: 'asc'
   });
+
+  const handleEditOpen = (task: Task) => {
+    setEditTarget(task);
+    setEditOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditTarget(null);
+    setEditOpen(false);
+  };
 
   const filteredTasks = useMemo(() => {
     let filtered = appState.tasks;
@@ -59,6 +78,7 @@ export function TaskList() {
         const assignee = authState.users.find(u => u.uid === task.assigneeUid);
 
         return (
+          task.taskName.toLowerCase().includes(searchText) ||
           taskMaster?.taskName.toLowerCase().includes(searchText) ||
           taskMaster?.taskDescription?.toLowerCase().includes(searchText) ||
           project?.projectName.toLowerCase().includes(searchText) ||
@@ -163,47 +183,65 @@ export function TaskList() {
   };
 
   const getTaskData = (task: Task) => {
-    const taskMaster = appState.taskMasters.find(tm => tm.uid === task.taskMasterUid);
+    const taskName = task.taskName || appState.taskMasters.find(tm => tm.uid === task.taskMasterUid)?.taskName || ''
     const project = appState.projects.find(p => p.uid === task.projectUid);
     const assignee = authState.users.find(u => u.uid === task.assigneeUid);
 
     return {
-      taskName: taskMaster?.taskName || '不明なタスク',
+      taskName,
       projectName: project?.projectName || '不明なプロジェクト',
       assigneeName: assignee?.name || '不明なユーザー',
     };
   }
 
-  const handleStatusChange = (task: Task, newStatus: 'not_started' | 'in_progress' | 'completed') => {
-    const updatedTask: Task = {
-      ...task,
-      status: newStatus,
-      updatedBy: authState.user?.uid || '',
-      updatedAt: new Date()
-    };
-    dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+  const handleStatusChange = async (task: Task, newStatus: 'not_started' | 'in_progress' | 'completed') => {
+    try {
+      const project = appState.projects.find(pj => pj.uid === task.projectUid);
+
+      if (!project) {
+        throw new Error('プロジェクトが見つかりませんでした。');
+      }
+
+      const updatedTask: Task = {
+        ...task,
+        status: newStatus,
+        updatedBy: authState.user?.uid || '',
+        updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss')
+      };
+
+      const updatedProject: Project = {
+        ...project,
+        tasks: project.tasks.map(t => t.uid === task.uid ? updatedTask : t)
+      };
+
+      await updateTask(updatedProject, updatedTask);
+    } catch (err) {
+      console.error(err);
+      toast.error('ステータスの更新中にエラーが発生しました。');
+    }
   };
 
-  const isOverdue = (dueDate: Date) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    return due < today;
+  const isOverdue = (dueDate: string) => {
+    const today = dayjs();
+    const due = dayjs(dueDate);
+    return due.isBefore(today);
   };
 
   const handleMobileSortChange = (value: string): void => {
+    console.log(value, appState.tasks[0]);
     if (value && value in appState.tasks[0]) {
       handleSort(value as keyof Task);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col p-2">
+      <div className="flex items-center justify-between flex-shrink-0 h-12 my-2">
         <h2 className="text-2xl font-bold">タスク一覧</h2>
         <div className="flex items-center gap-2">
           <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="default">
                 <Filter className="h-4 w-4 mr-2" />
                 フィルター
               </Button>
@@ -300,9 +338,40 @@ export function TaskList() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckSquare className="h-5 w-5" />
-            タスク ({filteredTasks.length})
+          <CardTitle className="flex justify-between items-center gap-2">
+            <div className='flex items-center gap-2'>
+              <CheckSquare className="h-5 w-5" />
+              タスク ({filteredTasks.length})
+            </div>
+
+            {/* モバイル用ソートボタン */}
+            {isMobile && (
+              <div className="flex flex-wrap gap-2">
+                <Select value={sortConfig.key || ''} onValueChange={handleMobileSortChange}>
+                  <SelectTrigger className="w-34">
+                    <SelectValue placeholder="ソート" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="taskName">タスク名</SelectItem>
+                    <SelectItem value="projectUid">プロジェクト</SelectItem>
+                    <SelectItem value="status">ステータス</SelectItem>
+                    <SelectItem value="assigneeUid">担当者</SelectItem>
+                    <SelectItem value="dueDate">期日</SelectItem>
+                  </SelectContent>
+                </Select>
+                {sortConfig.key && (
+                  <Button
+                    variant="outline"
+                    size='sm'
+                    onClick={() => handleSort(sortConfig.key!)}
+                    className="flex items-center gap-1"
+                  >
+                    {sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {sortConfig.direction === 'asc' ? '昇順' : '降順'}
+                  </Button>
+                )}
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -335,6 +404,11 @@ export function TaskList() {
                       <TableHead>
                         <SortableHeader sortKey="dueDate" onSort={handleSort} sortConfig={sortConfig}>
                           期日
+                        </SortableHeader>
+                      </TableHead>
+                      <TableHead>
+                        <SortableHeader sortKey="dueDate" onSort={handleSort} sortConfig={sortConfig}>
+                          残日数
                         </SortableHeader>
                       </TableHead>
                       <TableHead>操作</TableHead>
@@ -380,11 +454,17 @@ export function TaskList() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4 text-gray-400" />
-                              {format(task.dueDate, 'yyyy/MM/dd', { locale: ja })}
+                              {dayjs(task.dueDate).format('YYYY/MM/DD')}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm">
+                            <div className="flex items-center gap-2">
+                              <Timer className="h-4 w-4 text-gray-400" />
+                              {`${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd')}日`}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" onClick={() => handleEditOpen(task)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -398,32 +478,6 @@ export function TaskList() {
 
             {/* モバイル用カードレイアウト */}
             <div className="block md:hidden space-y-4">
-              {/* モバイル用ソートボタン */}
-              <div className="mb-4 flex flex-wrap gap-2">
-                <Select value={sortConfig.key || ''} onValueChange={handleMobileSortChange}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="ソート" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">タスク名</SelectItem>
-                    <SelectItem value="project">プロジェクト</SelectItem>
-                    <SelectItem value="status">ステータス</SelectItem>
-                    <SelectItem value="assignee">担当者</SelectItem>
-                    <SelectItem value="dueDate">期日</SelectItem>
-                  </SelectContent>
-                </Select>
-                {sortConfig.key && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSort(sortConfig.key!)}
-                    className="flex items-center gap-1"
-                  >
-                    {sortConfig.direction === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    {sortConfig.direction === 'asc' ? '昇順' : '降順'}
-                  </Button>
-                )}
-              </div>
               {sortedTasks.map(task => {
                 const taskData = getTaskData(task);
                 return (
@@ -437,10 +491,16 @@ export function TaskList() {
                         {getStatusBadge(task.status)}
                       </div>
 
-                      {/* プロジェクト */}
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Building className="h-4 w-4" />
-                        <span>{taskData.projectName}</span>
+                      {/* プロジェクトと残日数 */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Building className="h-4 w-4" />
+                          <span>{taskData.projectName}</span>
+                        </div>
+                        <div className={`flex items-center gap-2 ${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd') < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                          <Timer className="h-4 w-4" />
+                          <span>{`残り${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd')}日`}</span>
+                        </div>
                       </div>
 
                       {/* 担当者と期日 */}
@@ -455,7 +515,7 @@ export function TaskList() {
                           ) : (
                             <Calendar className="h-4 w-4" />
                           )}
-                          <span>{format(task.dueDate, 'yyyy/MM/dd', { locale: ja })}</span>
+                          <span>{dayjs(task.dueDate).format('YYYY/MM/DD')}</span>
                         </div>
                       </div>
 
@@ -474,7 +534,7 @@ export function TaskList() {
                             <SelectItem value="completed">完了</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditOpen(task)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -491,6 +551,14 @@ export function TaskList() {
           )}
         </CardContent>
       </Card>
+
+      {/** タスク編集ダイアログ */}
+      {editTarget &&
+        <TaskEditDialog
+          isOpen={editOpen}
+          onClose={handleEditClose}
+          editingTask={editTarget}
+        />}
     </div>
   );
 }

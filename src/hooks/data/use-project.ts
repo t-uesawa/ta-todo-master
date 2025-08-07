@@ -1,10 +1,8 @@
 import { useApp } from "@/contexts/AppContext"
-import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Project, Task } from "@/types";
-import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { useCallback } from "react";
-import dayjs from 'dayjs';
 
 /**
  * プロジェクトのカスタムフック
@@ -12,7 +10,6 @@ import dayjs from 'dayjs';
  */
 export const useProject = () => {
 	const { state: appData, dispatch } = useApp();
-	const { state: userData } = useAuth();
 
 	// プロジェクトの初回取得(未完了プロジェクトとタスクを全取得)
 	const fetchProjects = async () => {
@@ -127,100 +124,26 @@ export const useProject = () => {
 		}
 	}, [dispatch]);
 
-	// タスクの追加
-	const addTasks = useCallback(async (
-		projectUid: string,
-		newTasks: Omit<Task, 'uid' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>[]
-	) => {
+	// タスクの更新(プロジェクトのタスク配列の更新)
+	const updateTask = useCallback(async (updateProj: Project, updateTask: Task) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
 
 		try {
-			newTasks.forEach(async (task) => {
-				const rowId = crypto.randomUUID();
-				const customUid = `task_${projectUid}_${rowId}`;
+			// 更新対象プロジェクトの取得
+			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, updateProj.uid);
 
-				const newTaskData: Task = {
-					...task,
-					uid: customUid,
-					createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-					createdBy: userData.user?.uid || '',
-					updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-					updatedBy: userData.user?.uid || '',
-				}
+			await updateDoc(projectRef, { ...updateProj });
 
-				// const ref = doc(db, COLLECTION_NAMES.TASKS, customUid);
-				// await setDoc(ref, newTaskData);
-
-				dispatch({ type: 'ADD_TASK', payload: newTaskData });
-			});
-		} catch (err) {
-			console.error(err);
-			dispatch({ type: 'SET_ERROR', payload: 'タスクの作成中にエラーが発生しました。' });
-		} finally {
-			dispatch({ type: 'SET_LOADING', payload: false });
-		}
-	}, [userData, dispatch]);
-
-	// タスクの更新
-	const updateTasks = useCallback(async (projectUid: string, updateTasks: Task[]) => {
-		dispatch({ type: 'SET_LOADING', payload: true });
-		dispatch({ type: 'SET_ERROR', payload: null });
-
-		try {
-			// 更新対象のプロジェクトUIDに紐づくタスクを全て取得
-			const taskCol = collection(db, COLLECTION_NAMES.TASKS);
-			const q = query(
-				taskCol,
-				where('projectUid', '==', projectUid)
-			);
-			const snapshot = await getDocs(q);
-			const existingMap = new Map<string, Task>();
-			snapshot.forEach((docSnap) => existingMap.set(docSnap.id, docSnap.data() as Task));
-
-			// 更新データをMap化
-			const newMap = new Map(
-				updateTasks.map(task => [
-					task.uid,
-					{
-						...task,
-						updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-						updatedBy: userData.user?.uid || '',
-					}
-				])
-			);
-
-			// 差分に基づいて追加・更新・削除
-			const batch = writeBatch(db);
-
-			// 追加・更新
-			for (const [id, task] of newMap) {
-				const existing = existingMap.get(id);
-				if (!existing || JSON.stringify(existing) !== JSON.stringify(task)) {
-					batch.set(doc(taskCol, id), task);
-				}
-			}
-
-			// 削除
-			for (const [id] of existingMap) {
-				if (!newMap.has(id)) {
-					batch.delete(doc(taskCol, id));
-				}
-			}
-
-			// 一括コミット
-			await batch.commit();
-
-			dispatch({ type: 'SET_TASKS', payload: updateTasks });
+			dispatch({ type: 'UPDATE_PROJECT', payload: updateProj });
+			dispatch({ type: 'UPDATE_TASK', payload: updateTask });
 		} catch (err) {
 			console.error(err);
 			dispatch({ type: 'SET_ERROR', payload: 'タスクの更新中にエラーが発生しました。' });
 		} finally {
 			dispatch({ type: 'SET_LOADING', payload: false });
 		}
-	}, [userData, dispatch]);
-
-	// タスクの削除
+	}, [dispatch]);
 
 	return {
 		projects: appData.projects,
@@ -231,7 +154,6 @@ export const useProject = () => {
 		addProject,
 		updateProject,
 		deleteProject,
-		addTasks,
-		updateTasks,
+		updateTask
 	};
 };

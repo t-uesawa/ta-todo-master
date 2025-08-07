@@ -5,16 +5,15 @@ import { AppProvider } from './contexts/AppContext';
 import { Header } from './components/layout/Header';
 import { AppSidebar } from './components/layout/Sidebar';
 import { LoginForm } from './components/features/auth/LoginForm';
-import { Dashboard } from './components/features/dashboard/Dashboard';
 import { TaskList } from './components/features/tasks/TaskList';
 import { ProjectList } from './components/features/projects/ProjectList';
 import { MasterManagement } from './components/features/masters/MasterManagement';
 import { useResponsive } from './hooks/useResponsive';
-import { Test } from './components/features/test/Test';
 import { Toaster } from './components/ui/sonner';
 import { useProject } from './hooks/data/use-project';
 import { useMaster } from './hooks/data/use-master';
 import { toast } from 'sonner';
+import { Dashboard } from './components/features/dashboard/Dashboard';
 
 function AppContent() {
   const { loading: projectLoading, error: projectError, fetchProjects } = useProject();
@@ -49,17 +48,15 @@ function AppContent() {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onPageChange={handlePageChange} />;
       case 'projects':
         return <ProjectList />;
       case 'tasks':
         return <TaskList />;
       case 'masters':
         return <MasterManagement />;
-      case 'test':
-        return <Test />
       default:
-        return <Dashboard />;
+        return <Dashboard onPageChange={handlePageChange} />;
     }
   };
 
