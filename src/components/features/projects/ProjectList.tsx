@@ -30,7 +30,7 @@ import { TaskMasterDetailDialog } from './drawer/TaskMasterDetailDialog';
 import { toast } from 'sonner';
 
 export function ProjectList() {
-  const { projects, tasks, deleteProject, lockProject, unlockProject } = useProject();
+  const { projects, tasks, deleteProject, checkLockProject, lockProject, unlockProject } = useProject();
   const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
   const [creationDrawerOpen, setCreationDrawerOpen] = useState(false);
@@ -113,9 +113,16 @@ export function ProjectList() {
     }
   };
 
-  const handleDelete = (project: Project) => {
-    setDeleteTarget(project);
-    setDeleteConfirmOpen(true);
+  const handleDelete = async (project: Project) => {
+    try {
+      await checkLockProject(project);
+      setDeleteTarget(project);
+      setDeleteConfirmOpen(true);
+    } catch (err) {
+      console.error('LOCK FAILED', err);
+      const errMsg = err instanceof Error ? err.message : '削除不可';
+      toast.error('削除不可', { description: errMsg });
+    }
   };
 
   const confirmDelete = async () => {

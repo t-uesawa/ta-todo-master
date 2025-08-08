@@ -32,7 +32,7 @@ export function TaskList() {
   const { isMobile } = useResponsive();
   const { state: appState, dispatch } = useApp();
   const { state: authState } = useAuth();
-  const { updateTask } = useProject();
+  const { checkLockProject, lockProject, unlockProject, updateTask } = useProject();
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
@@ -44,16 +44,6 @@ export function TaskList() {
     key: null,
     direction: 'asc'
   });
-
-  const handleEditOpen = (task: Task) => {
-    setEditTarget(task);
-    setEditOpen(true);
-  };
-
-  const handleEditClose = () => {
-    setEditTarget(null);
-    setEditOpen(false);
-  };
 
   const filteredTasks = useMemo(() => {
     let filtered = appState.tasks;
@@ -194,6 +184,41 @@ export function TaskList() {
     };
   }
 
+  const handleEditOpen = async (task: Task) => {
+    try {
+      const project = appState.projects.find(pj => pj.uid === task.projectUid);
+
+      if (project) {
+        await lockProject(project);
+        setEditTarget(task);
+        setEditOpen(true);
+      } else {
+        throw new Error('プロジェクトが見つかりませんでした。');
+      }
+    } catch (err) {
+      console.error('LOCK FAILED', err);
+      const errMsg = err instanceof Error ? err.message : '編集不可';
+      toast.error('編集不可', { description: errMsg });
+    }
+  };
+
+  const handleEditClose = async () => {
+    // ロック解除
+    try {
+      const project = appState.projects.find(pj => pj.uid === editTarget?.projectUid);
+      if (project) {
+        await unlockProject(project);
+      }
+    } catch (err) {
+      console.error('LOCK FAILED', err);
+      const errMsg = err instanceof Error ? err.message : '編集不可';
+      toast.error('編集不可', { description: errMsg });
+    } finally {
+      setEditTarget(null);
+      setEditOpen(false);
+    }
+  };
+
   const handleStatusChange = async (task: Task, newStatus: 'not_started' | 'in_progress' | 'completed') => {
     try {
       const project = appState.projects.find(pj => pj.uid === task.projectUid);
@@ -201,6 +226,8 @@ export function TaskList() {
       if (!project) {
         throw new Error('プロジェクトが見つかりませんでした。');
       }
+
+      await checkLockProject(project);
 
       const updatedTask: Task = {
         ...task,
@@ -217,7 +244,8 @@ export function TaskList() {
       await updateTask(updatedProject, updatedTask);
     } catch (err) {
       console.error(err);
-      toast.error('ステータスの更新中にエラーが発生しました。');
+      const errMsg = err instanceof Error ? err.message : 'ステータスの更新中にエラーが発生しました。';
+      toast.error('エラー', { description: errMsg });
     }
   };
 
@@ -452,15 +480,15 @@ export function TaskList() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              {dayjs(task.dueDate).format('YYYY/MM/DD')}
+                            <div className={`flex items-center gap-2 ${isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-600'}`}>
+                              <Calendar className="h-4 w-4" />
+                              <span>{dayjs(task.dueDate).format('YYYY/MM/DD')}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Timer className="h-4 w-4 text-gray-400" />
-                              {`${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd')}日`}
+                            <div className={`flex items-center gap-2 ${isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-600'}`}>
+                              <Timer className="h-4 w-4" />
+                              <span>{`${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd')}日`}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -497,7 +525,7 @@ export function TaskList() {
                           <Building className="h-4 w-4" />
                           <span>{taskData.projectName}</span>
                         </div>
-                        <div className={`flex items-center gap-2 ${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd') < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                        <div className={`flex items-center gap-2 ${isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-600'}`}>
                           <Timer className="h-4 w-4" />
                           <span>{`残り${dayjs(task.dueDate).add(1, 'd').diff(dayjs(), 'd')}日`}</span>
                         </div>
@@ -510,11 +538,7 @@ export function TaskList() {
                           <span>{taskData.assigneeName}</span>
                         </div>
                         <div className={`flex items-center gap-2 ${isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-600'}`}>
-                          {isOverdue(task.dueDate) ? (
-                            <AlertCircle className="h-4 w-4" />
-                          ) : (
-                            <Calendar className="h-4 w-4" />
-                          )}
+                          <Calendar className="h-4 w-4" />
                           <span>{dayjs(task.dueDate).format('YYYY/MM/DD')}</span>
                         </div>
                       </div>

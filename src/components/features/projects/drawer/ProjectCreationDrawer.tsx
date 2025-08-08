@@ -51,6 +51,8 @@ interface ProjectFormData {
   selectedTaskMasters: string[];  // タスクマスタUID
   freeTasks: FreeTask[];  // フリータスク
   taskAssignments: Record<string, { assigneeUid: string; dueDate: string, memo: string }>;
+  representativeUid: string;
+  assistantUid: string;
   memo: string;
 }
 
@@ -76,6 +78,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
     selectedTaskMasters: [],
     freeTasks: [],
     taskAssignments: {},
+    representativeUid: '',
+    assistantUid: '',
     memo: '',
   });
   const [calendarOpenMap, setCalendarOpenMap] = useState<Record<string, boolean>>({});
@@ -94,6 +98,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
       selectedTaskMasters: [],
       freeTasks: [],
       taskAssignments: {},
+      representativeUid: '',
+      assistantUid: '',
       memo: '',
     });
   };
@@ -184,8 +190,6 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
   };
 
   const handleAssignmentChange = (taskMasterUid: string, field: 'assigneeUid' | 'dueDate' | 'memo', value: string) => {
-    console.log(formData.taskAssignments);
-    console.log(taskMasterUid);
     setFormData(prev => ({
       ...prev,
       taskAssignments: {
@@ -291,6 +295,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
         tasks: newTasks,
         projectName: formData.projectName,
         projectType: formData.projectType,
+        representativeUid: formData.representativeUid,
+        assistantUid: formData.assistantUid,
         memo: formData.memo,
         updatedAt: now,
         updatedBy: userUid
@@ -307,6 +313,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
         ...(formData.kojiUid !== undefined && { kojiUid: formData.kojiUid }),
         projectName: formData.projectName,
         projectType: formData.projectType,
+        representativeUid: formData.representativeUid,
+        assistantUid: formData.assistantUid,
         memo: formData.memo,
         isCompleted: false,
         createdBy: userUid,
@@ -379,6 +387,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
       projectName: editingProject.projectName || '',
       projectType: editingProject.projectType || 'construction',
       kojiUid: editingProject.kojiUid,
+      representativeUid: editingProject.representativeUid || '',
+      assistantUid: editingProject.assistantUid || '',
       memo: editingProject.memo,
       selectedTaskMasters: masterTasks.map(task => task.taskMasterUid!),
       freeTasks: freeTasks.map(task => ({
@@ -461,6 +471,46 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
                 onChange={(e) => setFormData(prev => ({ ...prev, projectName: e.target.value }))}
                 placeholder="プロジェクト名を入力..."
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>施工責任者</Label>
+                <Select
+                  value={formData.representativeUid || ''}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, representativeUid: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="施工責任者を選択..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authState.users.map(user => (
+                      <SelectItem key={user.uid} value={user.uid}>
+                        <span className="font-medium">{user.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>アシスタント</Label>
+                <Select
+                  value={formData.assistantUid || ''}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, assistantUid: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="アシスタントを選択..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authState.users.map(user => (
+                      <SelectItem key={user.uid} value={user.uid}>
+                        <span className="font-medium">{user.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -695,6 +745,8 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
     switch (currentStep) {
       case 1:
         return formData.projectName.trim() !== '' &&
+          formData.representativeUid.trim() !== '' &&
+          formData.assistantUid.trim() !== '' &&
           (formData.projectType === 'general' || formData.kojiUid);
       case 2:
         return formData.freeTasks.length + formData.selectedTaskMasters.length > 0;

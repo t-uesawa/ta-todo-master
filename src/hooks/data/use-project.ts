@@ -127,7 +127,35 @@ export const useProject = () => {
 		}
 	}, [dispatch]);
 
-	// プロジェクトのロック処理
+	const checkLockProject = useCallback(async (project: Project) => {
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, project.uid);
+
+			await runTransaction(db, async (transaction) => {
+				const docSnap = await transaction.get(projectRef);
+				const data = docSnap.data();
+
+				// 既に誰かがロック中かつ、自分でない場合
+				if (data?.lock && data.lock.uid !== authData.user?.uid) {
+					const lockTime = dayjs(data.lock.time);
+					if (dayjs().diff(lockTime, 'minute') < 10) {
+						// 10分以内のロック → 編集不可
+						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.name}が編集のため操作できません。`);
+					}
+					// タイムアウトしたロックは上書きできる（死んだロック対策）
+				}
+			});
+		} catch (err) {
+			console.error(err);
+			const errMsg = err instanceof Error ? err.message : 'プロジェクトのロック確認中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			throw err;
+		}
+	}, [authData, dispatch]);
+
+	// プロジェクトのロック処理(ロックを確認してロックするところまで)
 	const lockProject = useCallback(async (project: Project) => {
 		// dispatch({ type: 'SET_LOADING', payload: true });
 		dispatch({ type: 'SET_ERROR', payload: null });
@@ -232,6 +260,7 @@ export const useProject = () => {
 		addProject,
 		updateProject,
 		deleteProject,
+		checkLockProject,
 		lockProject,
 		unlockProject,
 		updateTask
