@@ -33,6 +33,7 @@ export interface Project {
   projectType: 'construction' | 'general';
   memo: string;
   isCompleted: boolean;
+  lock?: { uid: string, time: string };
   createdBy: string;
   createdAt: string;
   updatedBy: string;

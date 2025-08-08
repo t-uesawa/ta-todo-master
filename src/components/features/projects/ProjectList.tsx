@@ -27,9 +27,10 @@ import { useProject } from '@/hooks/data/use-project';
 import { mockConstructions } from '@/data/mockData';
 import dayjs from 'dayjs';
 import { TaskMasterDetailDialog } from './drawer/TaskMasterDetailDialog';
+import { toast } from 'sonner';
 
 export function ProjectList() {
-  const { projects, tasks, deleteProject } = useProject();
+  const { projects, tasks, deleteProject, lockProject, unlockProject } = useProject();
   const { state: authState } = useAuth();
   const { isMobile } = useResponsive();
   const [creationDrawerOpen, setCreationDrawerOpen] = useState(false);
@@ -95,15 +96,22 @@ export function ProjectList() {
     setCompleteTarget(null);
   };
 
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    setCreationDrawerOpen(true);
-  };
-
-  const handleSelect = (project: Project) => {
+  const handleDetail = (project: Project) => {
     setSelectedProject(project);
     setDetailDrawerOpen(true);
   }
+
+  const handleEdit = async (project: Project) => {
+    try {
+      await lockProject(project);
+      setEditingProject(project);
+      setCreationDrawerOpen(true);
+    } catch (err) {
+      console.error('LOCK FAILED', err);
+      const errMsg = err instanceof Error ? err.message : '編集不可';
+      toast.error('編集不可', { description: errMsg });
+    }
+  };
 
   const handleDelete = (project: Project) => {
     setDeleteTarget(project);
@@ -142,9 +150,18 @@ export function ProjectList() {
     setDeleteTarget(null);
   };
 
-  const handleCreationDrawerClose = () => {
-    setCreationDrawerOpen(false);
-    setEditingProject(null);
+  const handleCreationDrawerClose = async () => {
+    // ロック解除
+    try {
+      if (editingProject) await unlockProject(editingProject);
+    } catch (err) {
+      console.error('LOCK FAILED', err);
+      const errMsg = err instanceof Error ? err.message : '編集不可';
+      toast.error('編集不可', { description: errMsg });
+    } finally {
+      setCreationDrawerOpen(false);
+      setEditingProject(null);
+    }
   };
 
   const handleDetailDrawerClose = () => {
@@ -200,7 +217,7 @@ export function ProjectList() {
                             <CircleCheck className="h-4 w-4 text-green-600" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => handleSelect(project)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleDetail(project)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(project)}>

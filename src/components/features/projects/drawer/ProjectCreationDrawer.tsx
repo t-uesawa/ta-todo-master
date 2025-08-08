@@ -718,7 +718,9 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={handleClose}>
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>

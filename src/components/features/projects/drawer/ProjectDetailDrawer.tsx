@@ -208,7 +208,7 @@ export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: Projec
 													</div>
 													<div className="rounded-md border bg-muted/50 px-3 py-2">
 														<p className="text-sm">
-															{getUserName(task.updatedAt)}
+															{getUserName(task.updatedBy)}
 														</p>
 													</div>
 												</div>

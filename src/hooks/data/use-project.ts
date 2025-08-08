@@ -1,7 +1,9 @@
 import { useApp } from "@/contexts/AppContext"
+import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/firebase-config";
 import { COLLECTION_NAMES, Project, Task } from "@/types";
-import { collection, doc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
+import dayjs from "dayjs";
+import { collection, deleteField, doc, getDocs, orderBy, query, runTransaction, setDoc, updateDoc, where } from "firebase/firestore";
 import { useCallback } from "react";
 
 /**
@@ -10,6 +12,7 @@ import { useCallback } from "react";
  */
 export const useProject = () => {
 	const { state: appData, dispatch } = useApp();
+	const { state: authData } = useAuth();
 
 	// プロジェクトの初回取得(未完了プロジェクトとタスクを全取得)
 	const fetchProjects = async () => {
@@ -124,6 +127,81 @@ export const useProject = () => {
 		}
 	}, [dispatch]);
 
+	// プロジェクトのロック処理
+	const lockProject = useCallback(async (project: Project) => {
+		// dispatch({ type: 'SET_LOADING', payload: true });
+		dispatch({ type: 'SET_ERROR', payload: null });
+
+		try {
+			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, project.uid);
+
+			await runTransaction(db, async (transaction) => {
+				const docSnap = await transaction.get(projectRef);
+				const data = docSnap.data();
+
+				// 既に誰かがロック中かつ、自分でない場合
+				if (data?.lock && data.lock.uid !== authData.user?.uid) {
+					const lockTime = dayjs(data.lock.time);
+					if (dayjs().diff(lockTime, 'minute') < 10) {
+						// 10分以内のロック → 編集不可
+						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.name}が編集のため操作できません。`);
+					}
+					// タイムアウトしたロックは上書きできる（死んだロック対策）
+				}
+
+				// ロックを設定
+				transaction.update(projectRef, {
+					lock: {
+						uid: authData.user?.uid || '',
+						time: dayjs().format('YYYY-MM-DD HH:mm'),
+					},
+				});
+				dispatch({
+					type: 'UPDATE_PROJECT',
+					payload: {
+						...project,
+						lock: {
+							uid: authData.user?.uid || '',
+							time: dayjs().format('YYYY-MM-DD HH:mm'),
+						},
+					}
+				});
+			});
+		} catch (err) {
+			console.error(err);
+			const errMsg = err instanceof Error ? err.message : 'プロジェクトのロック中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			throw err;
+		}
+	}, [authData, dispatch]);
+
+	// プロジェクトのロック解除処理
+	const unlockProject = useCallback(async (project: Project) => {
+		try {
+			const projectRef = doc(db, COLLECTION_NAMES.PROJECTS, project.uid);
+
+			await updateDoc(projectRef, {
+				lock: deleteField(), // ← このフィールドだけ削除される
+			});
+
+			const { lock, ...data } = project
+
+			dispatch({
+				type: 'UPDATE_PROJECT',
+				payload: {
+					...data,
+				}
+			});
+
+			console.log('unlock');
+		} catch (err) {
+			console.error(err);
+			const errMsg = err instanceof Error ? err.message : 'プロジェクトのロック解除中にエラーが発生しました。';
+			dispatch({ type: 'SET_ERROR', payload: errMsg });
+			throw err;
+		}
+	}, [dispatch]);
+
 	// タスクの更新(プロジェクトのタスク配列の更新)
 	const updateTask = useCallback(async (updateProj: Project, updateTask: Task) => {
 		dispatch({ type: 'SET_LOADING', payload: true });
@@ -154,6 +232,8 @@ export const useProject = () => {
 		addProject,
 		updateProject,
 		deleteProject,
+		lockProject,
+		unlockProject,
 		updateTask
 	};
 };
