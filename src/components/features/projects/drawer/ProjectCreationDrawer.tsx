@@ -486,7 +486,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
                   <SelectContent>
                     {authState.users.map(user => (
                       <SelectItem key={user.uid} value={user.uid}>
-                        <span className="font-medium">{user.name}</span>
+                        <span className="font-medium">{user.full_name}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -505,7 +505,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
                   <SelectContent>
                     {authState.users.map(user => (
                       <SelectItem key={user.uid} value={user.uid}>
-                        <span className="font-medium">{user.name}</span>
+                        <span className="font-medium">{user.full_name}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -678,7 +678,7 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
                             <SelectContent>
                               {authState.users.map(user => (
                                 <SelectItem key={user.uid} value={user.uid}>
-                                  <span className="font-medium">{user.name}</span>
+                                  <span className="font-medium">{user.full_name}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>

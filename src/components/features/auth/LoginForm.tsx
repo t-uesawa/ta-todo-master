@@ -36,16 +36,18 @@ export function LoginForm() {
                 <SelectValue placeholder="ユーザーを選択..." />
               </SelectTrigger>
               <SelectContent>
-                {state.users.map(user => (
-                  <SelectItem key={user.uid} value={user.uid}>
-                    <div className="flex flex-col text-left">
-                      <span className="font-medium">{user.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {user.department} - {user.role}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {state.users.map(user => {
+                  return (
+                    <SelectItem key={user.uid} value={user.uid}>
+                      <div className="flex flex-col text-left">
+                        <span className="font-medium">{user.full_name}</span>
+                        <span className="text-xs text-gray-500">
+                          {user.parent_organization} - {user.child_organization}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
           </div>

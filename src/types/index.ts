@@ -1,11 +1,40 @@
-// 基本的な型定義
-export interface User {
-  uid: string;
-  name: string;
-  email: string;
-  department: string;
-  role: 'admin' | 'manager' | 'member';
-}
+import { z } from "zod";
+
+// スキーマ定義
+const stringOrNull = z.union([z.string(), z.null()]);
+export const employmentTypeSchema = z.enum(['役員', '正社員', '契約社員', '派遣社員', 'アルバイト']);
+export const jobTitleSchema = z.enum(['役員', '部長', '課長', '一般']);
+export const permissionSchema = z.enum(['admin', 'internalAdmin', 'internalUser', 'external']);
+export const companySchema = z.enum(['大陽開発', '長倉工易']);
+
+// 取得時のスキーマ(*)
+export const EmployeeSchema = z.object({
+  id: z.number(),	// serial (primary)
+  uid: z.string(),	// firebase uid (unique) *
+  employee_id: z.number(),	// 社員番号 (unique) *
+  full_name: z.string(),	// 社員名 *
+  family_name: stringOrNull,	// 苗字
+  first_name: stringOrNull,	// 名前
+  h_family_name: stringOrNull,	// 苗字(カナ)
+  h_first_name: stringOrNull,	// 名前(カナ)
+  parent_organization: z.string(),	// 親組織
+  child_organization: z.string(),	// 子組織
+  phone_number: stringOrNull,	// 電話番号
+  birthdate: stringOrNull,	// 生年月日
+  joining_date: stringOrNull,	// 入社年月日
+  paid_leave_starting_date: stringOrNull,// 有休起算日
+  retirement_date: stringOrNull,	// 退職年月日
+  affiliation_company: companySchema, // 所属会社
+  employment_type: employmentTypeSchema,	// 雇用区分
+  job_title: jobTitleSchema,	// 役職
+  permission: permissionSchema,	// 権限
+  range_report_target: z.boolean(),	// 通勤距離報告対象者
+  created_at: z.string(),	// 作成日時
+  updated_at: z.string(),	// 更新日時
+});
+
+// 型を作成
+export type Employee = z.infer<typeof EmployeeSchema>;
 
 // 工事
 export interface Construction {
@@ -31,6 +60,8 @@ export interface Project {
   projectName: string;
   tasks: Task[];
   projectType: 'construction' | 'general';
+  representativeUid: string;
+  assistantUid: string;
   memo: string;
   isCompleted: boolean;
   lock?: { uid: string, time: string };

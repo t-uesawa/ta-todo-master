@@ -40,13 +40,13 @@ export function Header({ isMobile }: HeaderProps) {
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="" />
-                <AvatarFallback>
-                  {state.user.name.substring(0, 2)}
+                <AvatarFallback className='text-sm'>
+                  {state.user.full_name.substring(0, 2)}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden sm:block">
-                <p className="text-sm font-medium text-gray-900">{state.user.name}</p>
-                <p className="text-xs text-gray-500">{state.user.department}</p>
+                <p className="text-sm font-medium text-gray-900">{state.user.full_name}</p>
+                <p className="text-xs text-gray-500">{state.user.child_organization}</p>
               </div>
               <Button
                 variant="ghost"

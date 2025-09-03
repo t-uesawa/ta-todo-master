@@ -47,7 +47,7 @@ export const TreeContent = ({
 
 	const getUserName = (userUid: string) => {
 		const user = state.users.find(u => u.uid === userUid);
-		return user?.name || '不明';
+		return user?.full_name || '不明';
 	};
 
 	const renderContent = () => {
@@ -208,7 +208,7 @@ export const TreeContent = ({
 											</div>
 											<div className="rounded-md border bg-muted/50 px-3 py-2">
 												<p className="text-sm">
-													{filteredTasks[0].assigneeUid}
+													{getUserName(filteredTasks[0].assigneeUid)}
 												</p>
 											</div>
 										</div>

@@ -306,27 +306,30 @@ export function Dashboard({ onPageChange }: DashboardProps) {
 									</CardDescription>
 								</CardHeader>
 								<CardContent className='flex flex-col overflow-y-auto space-y-2 pt-2'>
-									{myTaskStats.tasks.map(task => (
-										<div key={task.uid} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-											<div className="flex items-start justify-between">
-												{/** タスク名とプロジェクト名 */}
-												<div className="flex-1">
-													<h4 className="font-medium text-sm mb-1">{task.taskName || taskMasters.find(tm => tm.uid === task.taskMasterUid)?.taskName || '不明'}</h4>
-													<span className="flex items-center gap-2 text-xs text-gray-500">
-														{projects.find(p => p.uid === task.projectUid)?.projectName || ''}
-													</span>
-												</div>
-												{/** ステータスと期限 */}
-												<div className='flex flex-col items-end gap-2'>
-													{getStatusBadge(task.status)}
-													<div className="flex items-center gap-2 text-xs text-gray-500">
-														<Timer className="w-3 h-3" />
-														{task.dueDate}
+									{myTaskStats.tasks.length > 0 ?
+										myTaskStats.tasks.map(task => (
+											<div key={task.uid} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+												<div className="flex items-start justify-between">
+													{/** タスク名とプロジェクト名 */}
+													<div className="flex-1">
+														<h4 className="font-medium text-sm mb-1">{task.taskName || taskMasters.find(tm => tm.uid === task.taskMasterUid)?.taskName || '不明'}</h4>
+														<span className="flex items-center gap-2 text-xs text-gray-500">
+															{projects.find(p => p.uid === task.projectUid)?.projectName || ''}
+														</span>
+													</div>
+													{/** ステータスと期限 */}
+													<div className='flex flex-col items-end gap-2'>
+														{getStatusBadge(task.status)}
+														<div className="flex items-center gap-2 text-xs text-gray-500">
+															<Timer className="w-3 h-3" />
+															{task.dueDate}
+														</div>
 													</div>
 												</div>
 											</div>
-										</div>
-									))}
+										)) : (
+											<p className='text-center'>割り当てられたタスクはありません。</p>
+										)}
 								</CardContent>
 							</Card>
 						</div>

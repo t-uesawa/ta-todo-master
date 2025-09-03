@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { User } from '../types';
+import { Employee } from '../types';
 import { mockUsers } from '../data/mockData';
 
 interface AuthState {
-  user: User | null;
+  user: Employee | null;
   isAuthenticated: boolean;
-  users: User[];
+  users: Employee[];
 }
 
 type AuthAction =
-  | { type: 'LOGIN'; payload: User }
+  | { type: 'LOGIN'; payload: Employee }
   | { type: 'LOGOUT' }
-  | { type: 'SWITCH_USER'; payload: User };
+  | { type: 'SWITCH_USER'; payload: Employee };
 
 const initialState: AuthState = {
   user: null,

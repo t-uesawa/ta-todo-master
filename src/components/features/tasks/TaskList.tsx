@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Filter, Search, CheckSquare, Building, User, Calendar, Edit, AlertCircle, ArrowUpDown, ChevronUp, ChevronDown, Timer } from 'lucide-react';
+import { Filter, Search, CheckSquare, Building, User, Calendar, Edit, ArrowUpDown, ChevronUp, ChevronDown, Timer } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Project, Task, TaskFilter } from '../../../types';
@@ -72,7 +72,7 @@ export function TaskList() {
           taskMaster?.taskName.toLowerCase().includes(searchText) ||
           taskMaster?.taskDescription?.toLowerCase().includes(searchText) ||
           project?.projectName.toLowerCase().includes(searchText) ||
-          assignee?.name.toLowerCase().includes(searchText)
+          assignee?.full_name.toLowerCase().includes(searchText)
         );
       });
     }
@@ -180,7 +180,7 @@ export function TaskList() {
     return {
       taskName,
       projectName: project?.projectName || '不明なプロジェクト',
-      assigneeName: assignee?.name || '不明なユーザー',
+      assigneeName: assignee?.full_name || '不明なユーザー',
     };
   }
 
@@ -311,7 +311,7 @@ export function TaskList() {
                       <SelectItem value="all">すべて</SelectItem>
                       {authState.users.map(user => (
                         <SelectItem key={user.uid} value={user.uid}>
-                          {user.name}
+                          {user.full_name}
                         </SelectItem>
                       ))}
                     </SelectContent>

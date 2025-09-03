@@ -1,13 +1,46 @@
-import { User, Construction } from '../types';
+import { Employee, Construction } from '../types';
 
 // ユーザーマスタ
-export const mockUsers: User[] = [
-  { uid: 'user1', name: '田中太郎', email: 'tanaka@example.com', department: '建設部', role: 'admin' },
-  { uid: 'user2', name: '佐藤花子', email: 'sato@example.com', department: '設計部', role: 'manager' },
-  { uid: 'user3', name: '鈴木一郎', email: 'suzuki@example.com', department: '営業部', role: 'member' },
-  { uid: 'user4', name: '高橋美咲', email: 'takahashi@example.com', department: '建設部', role: 'member' },
-  { uid: 'user5', name: '伊藤健太', email: 'ito@example.com', department: '設計部', role: 'member' }
+export const mockUsers: Employee[] = [
+  { "id": 24, "uid": "wyIvOc28Vla0lwvRWOCd37IJuTS2", "employee_id": 2508, "full_name": "藤田　諒", "family_name": "藤田", "first_name": "諒", "h_family_name": "フジタ", "h_first_name": "リョウ", "parent_organization": "営業部", "child_organization": "営業部", "phone_number": "090-5567-0297", "birthdate": "1992-06-15", "joining_date": "2023-04-01", "paid_leave_starting_date": "2023-04-01", "retirement_date": null, "affiliation_company": "大陽開発", "employment_type": "正社員", "job_title": "一般", "permission": "internalUser", "range_report_target": false, "created_at": "2025-03-06T02:06:25.96197+00:00", "updated_at": "2025-03-25T15:45:38.524999+00:00" },
+  { "id": 25, "uid": "Us3dQO7tE0ea35n3DnqXUCRYBdN2", "employee_id": 2509, "full_name": "上沢　泰輝", "family_name": "上沢", "first_name": "泰輝", "h_family_name": "ウエサワ", "h_first_name": "タイキ", "parent_organization": "総務部", "child_organization": "総務", "phone_number": "080-6930-7783", "birthdate": "1998-09-09", "joining_date": "2023-09-01", "paid_leave_starting_date": "2023-09-01", "retirement_date": null, "affiliation_company": "大陽開発", "employment_type": "正社員", "job_title": "一般", "permission": "admin", "range_report_target": true, "created_at": "2025-03-06T02:06:25.96197+00:00", "updated_at": "2025-03-25T15:45:38.524999+00:00" },
+  { "id": 27, "uid": "znStqDr3c0Suj5qKodfNZs7P95g1", "employee_id": 2511, "full_name": "岡田　悠希", "family_name": "岡田", "first_name": "悠希", "h_family_name": "オカダ", "h_first_name": "ユウキ", "parent_organization": "総務部", "child_organization": "総務", "phone_number": "080-3254-8102", "birthdate": "1989-12-07", "joining_date": "2024-08-01", "paid_leave_starting_date": "2024-08-01", "retirement_date": null, "affiliation_company": "大陽開発", "employment_type": "正社員", "job_title": "一般", "permission": "internalUser", "range_report_target": false, "created_at": "2025-03-06T02:06:25.96197+00:00", "updated_at": "2025-03-25T15:45:38.524999+00:00" },
+  { "id": 28, "uid": "teIv7N3UL1MCZEUy19lvWnltAwD2", "employee_id": 2701, "full_name": "小林　真美", "family_name": "小林", "first_name": "真美", "h_family_name": "コバヤシ", "h_first_name": "マミ", "parent_organization": "工事部", "child_organization": "アシスタント", "phone_number": "090-4005-0257", "birthdate": "1972-11-04", "joining_date": "1992-03-01", "paid_leave_starting_date": "1992-09-01", "retirement_date": null, "affiliation_company": "大陽開発", "employment_type": "正社員", "job_title": "一般", "permission": "internalUser", "range_report_target": false, "created_at": "2025-03-06T02:06:25.96197+00:00", "updated_at": "2025-03-25T15:45:38.524999+00:00" },
+  { "id": 32, "uid": "UFpZYjK6oVM5gaLykbhTNqIBDmx2", "employee_id": 2705, "full_name": "荒木　和美", "family_name": "荒木", "first_name": "和美", "h_family_name": "アラキ", "h_first_name": "カズミ", "parent_organization": "総務部", "child_organization": "総務", "phone_number": "090-4000-7751", "birthdate": "1978-04-18", "joining_date": "2018-04-01", "paid_leave_starting_date": "2018-10-01", "retirement_date": null, "affiliation_company": "大陽開発", "employment_type": "正社員", "job_title": "一般", "permission": "internalUser", "range_report_target": false, "created_at": "2025-03-06T02:06:25.96197+00:00", "updated_at": "2025-03-25T15:45:38.524999+00:00" }
 ];
+
+// 親所属
+export const mainOrganization = [
+  { id: 1, order: 1, name: '工事部', groupId: 100 },
+  { id: 2, order: 2, name: '管理部', groupId: 300 },
+  { id: 3, order: 3, name: '営業部', groupId: 400 },
+  { id: 4, order: 4, name: '総務部', groupId: 500 },
+];
+
+// 子所属
+export const subOrganization = [
+  { id: 1, order: 1, mainOranizationId: 1, name: '土木課工務', groupId: 112 },
+  { id: 2, order: 1, mainOranizationId: 1, name: 'メンテナンス課工務', groupId: 122 },
+  { id: 3, order: 10, mainOranizationId: 1, name: '土木課オペレーター', groupId: 113 },
+  { id: 4, order: 10, mainOranizationId: 1, name: 'メンテナンス課オペレーター', groupId: 123 },
+  { id: 5, order: 50, mainOranizationId: 2, name: '円平', groupId: 310 },
+  { id: 6, order: 100, mainOranizationId: 1, name: '工事部', groupId: 100 },
+  { id: 7, order: 100, mainOranizationId: 1, name: 'メンテナンス課', groupId: 120 },
+  { id: 8, order: 100, mainOranizationId: 2, name: '管理部', groupId: 300 },
+  { id: 9, order: 100, mainOranizationId: 1, name: '土木課施工管理', groupId: 111 },
+  { id: 10, order: 100, mainOranizationId: 1, name: 'メンテナンス課施工管理', groupId: 121 },
+  { id: 11, order: 100, mainOranizationId: 2, name: '技術管理課', groupId: 320 },
+  { id: 12, order: 200, mainOranizationId: 3, name: '営業部', groupId: 400 },
+  { id: 13, order: 200, mainOranizationId: 4, name: '総務', groupId: 500 },
+  { id: 14, order: 300, mainOranizationId: 1, name: 'アシスタント', groupId: 130 },
+];
+
+// 主任・工務・その他
+export const workersArrangementPersonFilter = {
+  lead: [1, 2],	// 主任に部類する所属id
+  engineering: [3, 4, 5],	// 工務に部類する所属id
+  other: [6, 7, 8, 9, 10, 11, 12, 13, 14], // その他に部類する所属id
+}
 
 // 工事マスタ
 export const mockConstructions: Construction[] = [

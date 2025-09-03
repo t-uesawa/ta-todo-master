@@ -142,7 +142,7 @@ export const useProject = () => {
 					const lockTime = dayjs(data.lock.time);
 					if (dayjs().diff(lockTime, 'minute') < 10) {
 						// 10分以内のロック → 編集不可
-						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.name}が編集のため操作できません。`);
+						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.full_name}が編集のため操作できません。`);
 					}
 					// タイムアウトしたロックは上書きできる（死んだロック対策）
 				}
@@ -172,7 +172,7 @@ export const useProject = () => {
 					const lockTime = dayjs(data.lock.time);
 					if (dayjs().diff(lockTime, 'minute') < 10) {
 						// 10分以内のロック → 編集不可
-						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.name}が編集のため操作できません。`);
+						throw new Error(`${authData.users.find(u => u.uid === data.lock.uid)?.full_name}が編集のため操作できません。`);
 					}
 					// タイムアウトしたロックは上書きできる（死んだロック対策）
 				}
