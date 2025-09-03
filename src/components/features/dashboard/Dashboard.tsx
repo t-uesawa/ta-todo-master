@@ -18,6 +18,7 @@ import { Cell, Label, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { useMaster } from '@/hooks/data/use-master';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { TaskList } from './TaskList';
 
 interface DashboardProps {
 	onPageChange: (page: string) => void;
@@ -206,134 +207,96 @@ export function Dashboard({ onPageChange }: DashboardProps) {
 				<TabsContent value='all'>
 					未実装
 				</TabsContent>
-				<TabsContent value='person' className='h-full space-y-6'>
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-						<div className='space-y-4'>
-							{/* 統計カード */}
-							<div className="grid grid-cols-2 gap-4">
-								<Card onClick={() => handleTaskPageTransition('person', 'total')}>
-									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-medium">
-											総タスク数
-										</CardTitle>
-										<CheckSquare className="h-4 w-4 text-muted-foreground" />
-									</CardHeader>
-									<CardContent>
-										<div className="text-2xl font-bold">{myTaskStats.totalTask}</div>
-										<p className="text-xs text-muted-foreground">
-											全プロジェクト
-										</p>
-									</CardContent>
-								</Card>
 
-								<Card>
-									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-medium">
-											完了率
-										</CardTitle>
-										<TrendingUp className="h-4 w-4 text-muted-foreground" />
-									</CardHeader>
-									<CardContent>
-										<div className="text-2xl font-bold">{myCompletionRate.toFixed(1)}%</div>
-										<Progress value={myCompletionRate} className="mt-2" />
-									</CardContent>
-								</Card>
+				<TabsContent value='person' className='h-full space-y-4'>
+					<div className='max-h-[100% - 3.5rem - 3rem] grid grid-cols-1 lg:grid-cols-2 gap-4'>
+						{/* 統計カード */}
+						<div className="grid grid-cols-2 gap-4">
+							<Card onClick={() => handleTaskPageTransition('person', 'total')}>
+								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+									<CardTitle className="text-sm font-medium">
+										総タスク数
+									</CardTitle>
+									<CheckSquare className="h-4 w-4 text-muted-foreground" />
+								</CardHeader>
+								<CardContent>
+									<div className="text-2xl font-bold">{myTaskStats.totalTask}</div>
+									<p className="text-xs text-muted-foreground">
+										全プロジェクト
+									</p>
+								</CardContent>
+							</Card>
 
-								<Card>
-									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-medium">
-											進行中
-										</CardTitle>
-										<Footprints className="h-4 w-4 text-muted-foreground" />
-									</CardHeader>
-									<CardContent>
-										<div className="text-2xl font-bold">{myTaskStats.inProgress}</div>
-										<p className="text-xs text-muted-foreground">
-											現在進行中のタスク
-										</p>
-									</CardContent>
-								</Card>
-
-								<Card>
-									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-medium">
-											期限切れ
-										</CardTitle>
-										<Timer className="h-4 w-4 text-destructive" />
-									</CardHeader>
-									<CardContent>
-										<div className="text-2xl font-bold text-destructive">{myOverdueTasks.length}</div>
-										<p className="text-xs text-muted-foreground">
-											期限を過ぎたタスク
-										</p>
-									</CardContent>
-								</Card>
-							</div>
-
-							{/* Status Chart */}
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										ステータス別状況
+										完了率
 									</CardTitle>
-									<PieChartIcon className="h-4 w-4" />
+									<TrendingUp className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
-								<CardContent className='flex items-center justify-between'>
-									<StatusChart
-										completed={myTaskStats.completed}
-										inProgress={myTaskStats.inProgress}
-										notStarted={myTaskStats.notStarted}
-									/>
-									<div className='w-40'>
-										<p><span className='w-2 h-2 mr-2 text-gray-300'>●</span>{`未着手: ${myTaskStats.notStarted}`}</p>
-										<p><span className='w-2 h-2 mr-2 text-blue-600'>●</span>{`進行中: ${myTaskStats.inProgress}`}</p>
-										<p><span className='w-2 h-2 mr-2 text-green-600'>●</span>{`完了: ${myTaskStats.completed}`}</p>
-									</div>
+								<CardContent>
+									<div className="text-2xl font-bold">{myCompletionRate.toFixed(1)}%</div>
+									<Progress value={myCompletionRate} className="mt-2" />
+								</CardContent>
+							</Card>
+
+							<Card>
+								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+									<CardTitle className="text-sm font-medium">
+										進行中
+									</CardTitle>
+									<Footprints className="h-4 w-4 text-muted-foreground" />
+								</CardHeader>
+								<CardContent>
+									<div className="text-2xl font-bold">{myTaskStats.inProgress}</div>
+									<p className="text-xs text-muted-foreground">
+										現在進行中のタスク
+									</p>
+								</CardContent>
+							</Card>
+
+							<Card>
+								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+									<CardTitle className="text-sm font-medium">
+										期限切れ
+									</CardTitle>
+									<Timer className="h-4 w-4 text-destructive" />
+								</CardHeader>
+								<CardContent>
+									<div className="text-2xl font-bold text-destructive">{myOverdueTasks.length}</div>
+									<p className="text-xs text-muted-foreground">
+										期限を過ぎたタスク
+									</p>
 								</CardContent>
 							</Card>
 						</div>
 
-						<div>
-							{/* マイタスク */}
-							<Card className="max-h-[calc(100vh-10rem)] flex flex-col overflow-hidden">
-								<CardHeader className="sticky top-0 z-8 bg-white">
-									<CardTitle className="flex items-center gap-2">
-										<Users className="h-5 w-5" />
-										マイタスク
-									</CardTitle>
-									<CardDescription>
-										あなたに割り当てられたタスクの状況
-									</CardDescription>
-								</CardHeader>
-								<CardContent className='flex flex-col overflow-y-auto space-y-2 pt-2'>
-									{myTaskStats.tasks.length > 0 ?
-										myTaskStats.tasks.map(task => (
-											<div key={task.uid} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-												<div className="flex items-start justify-between">
-													{/** タスク名とプロジェクト名 */}
-													<div className="flex-1">
-														<h4 className="font-medium text-sm mb-1">{task.taskName || taskMasters.find(tm => tm.uid === task.taskMasterUid)?.taskName || '不明'}</h4>
-														<span className="flex items-center gap-2 text-xs text-gray-500">
-															{projects.find(p => p.uid === task.projectUid)?.projectName || ''}
-														</span>
-													</div>
-													{/** ステータスと期限 */}
-													<div className='flex flex-col items-end gap-2'>
-														{getStatusBadge(task.status)}
-														<div className="flex items-center gap-2 text-xs text-gray-500">
-															<Timer className="w-3 h-3" />
-															{task.dueDate}
-														</div>
-													</div>
-												</div>
-											</div>
-										)) : (
-											<p className='text-center'>割り当てられたタスクはありません。</p>
-										)}
-								</CardContent>
-							</Card>
-						</div>
+						{/* Status Chart */}
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="text-sm font-medium">
+									ステータス別状況
+								</CardTitle>
+								<PieChartIcon className="h-4 w-4" />
+							</CardHeader>
+							<CardContent className='flex items-center justify-between'>
+								<StatusChart
+									completed={myTaskStats.completed}
+									inProgress={myTaskStats.inProgress}
+									notStarted={myTaskStats.notStarted}
+								/>
+								<div className='w-40'>
+									<p><span className='w-2 h-2 mr-2 text-gray-300'>●</span>{`未着手: ${myTaskStats.notStarted}`}</p>
+									<p><span className='w-2 h-2 mr-2 text-blue-600'>●</span>{`進行中: ${myTaskStats.inProgress}`}</p>
+									<p><span className='w-2 h-2 mr-2 text-green-600'>●</span>{`完了: ${myTaskStats.completed}`}</p>
+								</div>
+							</CardContent>
+						</Card>
 					</div>
+
+					{/** タスクリスト */}
+					<TaskList />
+
 				</TabsContent>
 			</div>
 		</Tabs>

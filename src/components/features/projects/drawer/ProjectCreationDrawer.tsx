@@ -211,43 +211,46 @@ export function ProjectCreationDrawer({ isOpen, onClose, editingProject, onDetai
 
       // タスクマスタの処理
       formData.selectedTaskMasters.forEach(tm => {
-        const updateTask = editingProject.tasks.find(task => task.taskMasterUid === tm);
+        // タスク以外はスルー
+        if (tm.slice(0, 2) === 'tm') {
+          const updateTask = editingProject.tasks.find(task => task.taskMasterUid === tm);
 
-        // データに変更があれば更新
-        if (updateTask) {
-          newTasks.push(
-            updateTask.assigneeUid !== formData.taskAssignments[tm].assigneeUid ||
-              updateTask.dueDate !== formData.taskAssignments[tm].dueDate ||
-              updateTask.memo !== formData.taskAssignments[tm].memo ?
-              {
-                ...updateTask,
-                taskMasterUid: tm,
-                assigneeUid: formData.taskAssignments[tm].assigneeUid,
-                dueDate: formData.taskAssignments[tm].dueDate,
-                memo: formData.taskAssignments[tm].memo,
-                updatedBy: userUid,
-                updatedAt: now,
-              } : updateTask
-          );
-        } else {
-          // 一致するタスクがなければ追加
-          const uid = generateUid();
-          newTasks.push({
-            uid: `${editingProject.uid}-${uid}`,
-            projectUid: editingProject.uid,
-            taskMasterUid: tm,
-            taskName: '',
-            status: 'not_started' as const,
-            assigneeUid: formData.taskAssignments[tm].assigneeUid,
-            dueDate: formData.taskAssignments[tm].dueDate,
-            memo: formData.taskAssignments[tm].memo,
-            createdBy: userUid,
-            createdAt: now,
-            updatedBy: userUid,
-            updatedAt: now,
-            deletedBy: '',
-            deletedAt: '',
-          });
+          // データに変更があれば更新
+          if (updateTask) {
+            newTasks.push(
+              updateTask.assigneeUid !== formData.taskAssignments[tm].assigneeUid ||
+                updateTask.dueDate !== formData.taskAssignments[tm].dueDate ||
+                updateTask.memo !== formData.taskAssignments[tm].memo ?
+                {
+                  ...updateTask,
+                  taskMasterUid: tm,
+                  assigneeUid: formData.taskAssignments[tm].assigneeUid,
+                  dueDate: formData.taskAssignments[tm].dueDate,
+                  memo: formData.taskAssignments[tm].memo,
+                  updatedBy: userUid,
+                  updatedAt: now,
+                } : updateTask
+            );
+          } else {
+            // 一致するタスクがなければ追加
+            const uid = generateUid();
+            newTasks.push({
+              uid: `${editingProject.uid}-${uid}`,
+              projectUid: editingProject.uid,
+              taskMasterUid: tm,
+              taskName: '',
+              status: 'not_started' as const,
+              assigneeUid: formData.taskAssignments[tm].assigneeUid,
+              dueDate: formData.taskAssignments[tm].dueDate,
+              memo: formData.taskAssignments[tm].memo,
+              createdBy: userUid,
+              createdAt: now,
+              updatedBy: userUid,
+              updatedAt: now,
+              deletedBy: '',
+              deletedAt: '',
+            });
+          }
         }
       });
 

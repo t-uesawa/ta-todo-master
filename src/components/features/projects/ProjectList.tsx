@@ -58,7 +58,7 @@ export function ProjectList() {
 
   const getUserName = (userUid: string) => {
     const user = authState.users.find(u => u.uid === userUid);
-    return user?.name || '不明';
+    return user?.full_name || '不明';
   };
 
   const getProjectTypeBadge = (type: string) => {

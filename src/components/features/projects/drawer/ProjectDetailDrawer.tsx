@@ -38,7 +38,7 @@ export const ProjectDetailDrawer = ({ isOpen, onClose, selectedProject }: Projec
 
 	const getUserName = (userUid: string) => {
 		const user = state.users.find(u => u.uid === userUid);
-		return user?.name || '不明';
+		return user?.full_name || '不明';
 	};
 
 
